@@ -1,26 +1,10 @@
 package handlers
 
-import "net/http"
-
-func AllInOne(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method == http.MethodPost {
-		// разрешаем только POST-запросы
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	} else if r.Method == http.MethodGet {
-		_, _ = w.Write([]byte(`
-      {
-        "response": {
-          "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-      }
-    `))
-	}
-
-}
+import (
+	"github.com/Aligator77/go_practice/internal/stores"
+	"github.com/go-chi/chi/v5"
+	"net/http"
+)
 
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -33,4 +17,17 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
         "version": "1.0"
       }
     `))
+}
+
+func GetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+
+	id := chi.URLParam(r, "id")
+	if len(id) > 0 {
+		redirect := stores.GetRedirectsResponse(id)
+
+		http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
+	} else {
+
+	}
 }

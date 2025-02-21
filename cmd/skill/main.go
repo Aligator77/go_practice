@@ -3,17 +3,22 @@ package main
 
 import (
 	"context"
+	"flag"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/joho/godotenv"
 
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/handlers"
+	_ "github.com/Aligator77/go_practice/internal/handlers"
+	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/stores"
 )
 
@@ -22,6 +27,19 @@ const (
 	exitCodeFailure = 1
 	httpPort        = "8080"
 )
+
+/*func TimerTrace(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// перед началом выполнения функции сохраняем текущее время
+		start := time.Now()
+		// вызываем следующий обработчик
+		next.ServeHTTP(w, r)
+		// после завершения замеряем время выполнения запроса
+		duration := time.Since(start)
+		// сохраняем или сразу обрабатываем полученный результат
+		level.Warn(logger).Log("Time Duration", duration, "Method", r.Method, "URL.Path", r.URL.Path)
+	})
+}*/
 
 // Example:
 // POST / HTTP/1.1
@@ -55,7 +73,7 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 
 	errc := make(chan error, 1)
-	donec := make(chan struct{})
+	doneCh := make(chan struct{})
 	sigc := make(chan os.Signal, 1)
 
 	if err := godotenv.Load(); err != nil {
@@ -67,10 +85,29 @@ func main() {
 		level.Error(logger).Log("msg", "failed to load config", "err", err)
 		os.Exit(exitCodeFailure)
 	}
+	serverAddrFlag := flag.String("a", "", "input server address")
+	siteHostFlag := flag.String("b", "", "input server address")
+	flag.Parse()
 
-	urlServices := stores.CreateUrlService()
+	serverAddr := cfg.Server.Host + ":" + cfg.Server.Port
+	if len(*serverAddrFlag) > 0 && helpers.CheckFlag(serverAddrFlag) {
+		serverAddr = *serverAddrFlag
+	}
+
+	siteHost := cfg.SiteHost
+	if len(*siteHostFlag) > 0 && helpers.CheckFlagHttp(siteHostFlag) {
+		siteHost = *siteHostFlag
+	}
+
+	db, err := helpers.CreateDbConn(&cfg)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed to create db connection", "err", err)
+		os.Exit(exitCodeFailure)
+	}
+
+	urlServices := stores.CreateUrlService(db, logger, siteHost)
 	server := &http.Server{
-		Addr:                         cfg.Server.Host + ":" + cfg.Server.Port,
+		Addr:                         serverAddr,
 		DisableGeneralOptionsHandler: false,
 		TLSConfig:                    nil,
 		ReadTimeout:                  0,
@@ -84,10 +121,22 @@ func main() {
 		BaseContext:                  nil,
 		ConnContext:                  nil,
 	}
+	r := chi.NewRouter()
 
-	http.HandleFunc("/", handlers.AllInOne)
-	http.HandleFunc("/health", handlers.HealthCheck)
-	err = server.ListenAndServe()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.NoCache)
+	//r.Use(TimerTrace)
+
+	r.Route("/", func(r chi.Router) {
+		r.Get("/{id}", handlers.GetHandler)
+		r.Post("/", urlServices.CreatePostHandler)
+	})
+	r.Get("/health", handlers.HealthCheck)
+
+	err = http.ListenAndServe(":8080", r)
 
 	level.Info(logger).Log("msg", "searchService Started")
 
@@ -108,18 +157,13 @@ func main() {
 			} // Close http connection
 			_ = urlServices.Shutdown()
 			signal.Stop(sigc)
-			close(donec)
+			close(doneCh)
 		case <-errc:
 			level.Info(logger).Log("msg", "now exiting with error", "error code", exitCodeFailure)
 			os.Exit(exitCodeFailure)
 		}
 	}()
 
-	<-donec
+	<-doneCh
 	level.Info(logger).Log("msg", "goodbye")
-}
-
-// функция webhook — обработчик HTTP-запроса
-func webhook(w http.ResponseWriter, r *http.Request) {
-
 }
