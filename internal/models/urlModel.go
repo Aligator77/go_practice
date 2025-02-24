@@ -1,12 +1,20 @@
 package models
 
-import "net/http"
+import (
+	"io"
+	"net/http"
+)
 
 type UrlData struct {
-	Url interface{}
+	Url string
 }
 
 func (u UrlData) Bind(r *http.Request) error {
-	//TODO implement me
-	panic("implement me")
+	url, err := io.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	u.Url = string(url)
+
+	return nil
 }

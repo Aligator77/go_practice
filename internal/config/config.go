@@ -1,45 +1,33 @@
 package config
 
 import (
-	"os"
-	"strconv"
+	"github.com/caarlos0/env/v11"
 )
 
 type Conf struct {
 	Server struct {
-		Port string
-		Host string
+		Port    string `env:"SERVER_PORT" envDefault:"8080"`
+		Host    string `env:"SERVER_HOST" envDefault:"localhost"`
+		Address string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
 	}
-	AppVersion string
-	SiteHost   string
+	AppVersion string `env:"APP_VERSION" envDefault:"0.0.1"`
+	BaseUrl    string `env:"BASE_URL" envDefault:"http://localhost:8080"`
 	DB         struct {
-		Host       string
-		Port       string
-		User       string
-		Password   string
-		Name       string
-		MaxOpenCon int
-		MaxIdleCon int
+		Host       string `env:"DB_HOST" envDefault:"localhost"`
+		Port       string `env:"DB_PORT" envDefault:"5432"`
+		User       string `env:"DB_USER" envDefault:"yapr"`
+		Password   string `env:"DB_PASSWORD" envDefault:"yapr"`
+		Name       string `env:"DB_NAME" envDefault:"yapr"`
+		MaxOpenCon int    `env:"DB_MAX_OPEN_CON" envDefault:"10"`
+		MaxIdleCon int    `env:"DB_MAX_IDLE_CON" envDefault:"10"`
 	}
 }
 
 func New() (Conf, error) {
 	serverConf := Conf{}
-	serverConf.Server.Port = os.Getenv("SERVER_PORT")
-	serverConf.Server.Host = os.Getenv("SERVER_HOST")
-	serverConf.AppVersion = os.Getenv("APP_VERSION")
-	serverConf.SiteHost = os.Getenv("SITE_HOST")
-	serverConf.DB.Host = os.Getenv("DB_HOST")
-	serverConf.DB.Port = os.Getenv("DB_PORT")
-	serverConf.DB.User = os.Getenv("DB_USER")
-	serverConf.DB.Password = os.Getenv("DB_PASSWORD")
-	serverConf.DB.Name = os.Getenv("DB_NAME")
-	serverConf.DB.MaxIdleCon, _ = strconv.Atoi(os.Getenv("DB_MAX_OPEN_CON"))
-	serverConf.DB.MaxOpenCon, _ = strconv.Atoi(os.Getenv("DB_MAX_IDLE_CON"))
-
+	err := env.Parse(&serverConf)
+	if err != nil {
+		return serverConf, err
+	}
 	return serverConf, nil
-}
-
-func GetAppVersion() string {
-	return os.Getenv("APP_VERSION")
 }

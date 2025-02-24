@@ -1,27 +1,35 @@
 package helpers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
+
+	_ "github.com/lib/pq"
+
+	"github.com/Aligator77/go_practice/internal/config"
 )
-import "context"
-import "github.com/Aligator77/go_practice/internal/config"
 
 type ConnectionPool struct {
 	db *sql.DB
 }
 
 func CreateDbConn(conf *config.Conf) (cp *ConnectionPool, err error) {
-
-	connString := fmt.Sprintf("server=%s;user id=%s;password=%s;port=%d;database=%s",
-		conf.DB.Host,
+	cp = new(ConnectionPool)
+	//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
+	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		conf.DB.User,
 		conf.DB.Password,
+		conf.DB.Host,
 		conf.DB.Port,
 		conf.DB.Name,
 	)
-
-	cp.db, err = sql.Open("sqlserver", connString)
+	dsn, err := pq.ParseURL(connString)
+	if err != nil {
+		return nil, err
+	}
+	cp.db, err = sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
 	}

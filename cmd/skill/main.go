@@ -4,16 +4,16 @@ package main
 import (
 	"context"
 	"flag"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/joho/godotenv"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/handlers"
@@ -25,21 +25,7 @@ import (
 const (
 	exitCodeSuccess = 0
 	exitCodeFailure = 1
-	httpPort        = "8080"
 )
-
-/*func TimerTrace(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// перед началом выполнения функции сохраняем текущее время
-		start := time.Now()
-		// вызываем следующий обработчик
-		next.ServeHTTP(w, r)
-		// после завершения замеряем время выполнения запроса
-		duration := time.Since(start)
-		// сохраняем или сразу обрабатываем полученный результат
-		level.Warn(logger).Log("Time Duration", duration, "Method", r.Method, "URL.Path", r.URL.Path)
-	})
-}*/
 
 // Example:
 // POST / HTTP/1.1
@@ -86,17 +72,17 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 	serverAddrFlag := flag.String("a", "", "input server address")
-	siteHostFlag := flag.String("b", "", "input server address")
+	BaseUrlFlag := flag.String("b", "", "input server address")
 	flag.Parse()
 
-	serverAddr := cfg.Server.Host + ":" + cfg.Server.Port
+	serverAddr := cfg.Server.Address
 	if len(*serverAddrFlag) > 0 && helpers.CheckFlag(serverAddrFlag) {
 		serverAddr = *serverAddrFlag
 	}
 
-	siteHost := cfg.SiteHost
-	if len(*siteHostFlag) > 0 && helpers.CheckFlagHttp(siteHostFlag) {
-		siteHost = *siteHostFlag
+	BaseUrl := cfg.BaseUrl
+	if len(*BaseUrlFlag) > 0 && helpers.CheckFlagHttp(BaseUrlFlag) {
+		BaseUrl = *BaseUrlFlag
 	}
 
 	db, err := helpers.CreateDbConn(&cfg)
@@ -105,22 +91,8 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateUrlService(db, logger, siteHost)
-	server := &http.Server{
-		Addr:                         serverAddr,
-		DisableGeneralOptionsHandler: false,
-		TLSConfig:                    nil,
-		ReadTimeout:                  0,
-		ReadHeaderTimeout:            0,
-		WriteTimeout:                 0,
-		IdleTimeout:                  0,
-		MaxHeaderBytes:               0,
-		TLSNextProto:                 nil,
-		ConnState:                    nil,
-		ErrorLog:                     nil,
-		BaseContext:                  nil,
-		ConnContext:                  nil,
-	}
+	urlServices := stores.CreateUrlService(db, logger, BaseUrl)
+
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -128,17 +100,32 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.NoCache)
-	//r.Use(TimerTrace)
+	// create own middleware func, to pass logger variable
+	// создали свою функцию, чтобы пробросить логгер
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			// вызываем следующий обработчик
+			next.ServeHTTP(w, r)
+			duration := time.Since(start)
+			level.Warn(logger).Log("Time Duration", duration, "Method", r.Method, "URL.Path", r.URL.Path)
+		})
+	})
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/{id}", handlers.GetHandler)
+		r.Get("/{id}", urlServices.GetHandler)
 		r.Post("/", urlServices.CreatePostHandler)
 	})
 	r.Get("/health", handlers.HealthCheck)
+	server := &http.Server{
+		Addr:    serverAddr,
+		Handler: r,
+	}
+	go func() {
+		err = server.ListenAndServe()
+	}()
 
-	err = http.ListenAndServe(":8080", r)
-
-	level.Info(logger).Log("msg", "searchService Started")
+	level.Info(logger).Log("msg", "go service Started")
 
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
 

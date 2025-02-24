@@ -23,17 +23,20 @@ func init() {
 			insert into redirects
 			(is_active
 			, url
-			, refirect
+			, redirect
 			, date_create
 			, date_update)
-			values @Redirects
+			values ($1, $2, $3, NOW(), NOW())
 		`,
 		ctxTimeout: 2 * time.Minute}
 	queryMap[GetRedirect] = SQLQuery{
 		SQLRequest: `
-			select url, redirect
+			select url
+			     , redirect
+			     , date_create
+				 , date_update
 			from redirects
-			where is_active = 1 and url = @URL limit 1
+			where is_active = B'1' and redirect = $1 limit 1
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
