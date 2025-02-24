@@ -12,6 +12,7 @@ type Conf struct {
 	}
 	AppVersion string `env:"APP_VERSION" envDefault:"0.0.1"`
 	BaseUrl    string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	LocalStore string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
 	DB         struct {
 		Host       string `env:"DB_HOST" envDefault:"localhost"`
 		Port       string `env:"DB_PORT" envDefault:"5432"`

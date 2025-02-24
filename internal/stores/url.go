@@ -1,9 +1,12 @@
 package stores
 
 import (
+	"encoding/json"
+	"github.com/gofrs/uuid"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -18,16 +21,18 @@ import (
 )
 
 type UrlService struct {
-	Db      *helpers.ConnectionPool
-	BaseUrl string
-	logger  log.Logger
+	Db         *helpers.ConnectionPool
+	BaseUrl    string
+	logger     log.Logger
+	LocalStore string
 }
 
-func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, str string) (us *UrlService) {
+func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, str string, localStore string) (us *UrlService) {
 	us = &UrlService{
-		Db:      db,
-		BaseUrl: str,
-		logger:  logger,
+		Db:         db,
+		BaseUrl:    str,
+		logger:     logger,
+		LocalStore: localStore,
 	}
 
 	return us
@@ -47,6 +52,24 @@ func (u *UrlService) MakeFullUrl(link string) string {
 	} else {
 		return link
 	}
+}
+
+func (u *UrlService) StoreToFile(link string) error {
+	if len(u.LocalStore) > 0 {
+		f, err := os.OpenFile(u.LocalStore, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			level.Error(u.logger).Log("msg", "Cannot open localStoreFile", "err", err)
+			return err
+		}
+
+		defer f.Close()
+
+		if _, err = f.WriteString(link); err != nil {
+			level.Error(u.logger).Log("msg", "Cannot write to localStoreFile", "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (u *UrlService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +99,39 @@ func (u *UrlService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	//_ = render.Render(w, r, NewArticleResponse(article))
+}
+
+func (u *UrlService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	data := &models.UrlData{}
+	if err := render.Bind(r, data); err != nil {
+		_ = render.Render(w, r, server.ErrInvalidRequest(err))
+		return
+	}
+
+	newRedirect := helpers.GenerateRandomUrl(10)
+	redirect := &models.Redirect{
+		IsActive:   1,
+		Url:        data.Url,
+		Redirect:   newRedirect,
+		DateCreate: time.Now().String(),
+		DateUpdate: time.Now().String(),
+	}
+	_, err := u.NewRedirect(*redirect)
+	if err != nil {
+		return
+	}
+
+	//{"uuid":"1","short_url":"4rSPg8ap","original_url":"http://yandex.ru"}
+	newUuid, _ := uuid.NewV7()
+	redirect.ID = newUuid.String()
+	dataFile, _ := json.Marshal(redirect)
+	_ = u.StoreToFile(string(dataFile))
+
+	render.JSON(w, r, u.MakeFullUrl(newRedirect))
+
 	//_ = render.Render(w, r, NewArticleResponse(article))
 }
 
