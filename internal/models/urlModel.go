@@ -6,7 +6,7 @@ import (
 )
 
 type UrlData struct {
-	Url string
+	Url string `json:"url"`
 }
 
 func (u UrlData) Bind(r *http.Request) error {
