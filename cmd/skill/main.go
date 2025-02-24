@@ -72,7 +72,8 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 	serverAddrFlag := flag.String("a", "", "input server address")
-	BaseUrlFlag := flag.String("b", "", "input server address")
+	baseUrlFlag := flag.String("b", "", "input server address")
+	localStoreFile := flag.String("f", "", "input server address")
 	flag.Parse()
 
 	serverAddr := cfg.Server.Address
@@ -81,8 +82,13 @@ func main() {
 	}
 
 	BaseUrl := cfg.BaseUrl
-	if len(*BaseUrlFlag) > 0 && helpers.CheckFlagHttp(BaseUrlFlag) {
-		BaseUrl = *BaseUrlFlag
+	if len(*baseUrlFlag) > 0 && helpers.CheckFlagHttp(baseUrlFlag) {
+		BaseUrl = *baseUrlFlag
+	}
+
+	localStore := cfg.LocalStore
+	if len(*localStoreFile) > 0 {
+		localStore = *localStoreFile
 	}
 
 	db, err := helpers.CreateDbConn(&cfg)
@@ -91,7 +97,7 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateUrlService(db, logger, BaseUrl)
+	urlServices := stores.CreateUrlService(db, logger, BaseUrl, localStore)
 
 	r := chi.NewRouter()
 
@@ -100,6 +106,7 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.NoCache)
+	r.Use(middleware.Compress(5, "text/html", "application/json"))
 	// create own middleware func, to pass logger variable
 	// создали свою функцию, чтобы пробросить логгер
 	r.Use(func(next http.Handler) http.Handler {
@@ -115,6 +122,7 @@ func main() {
 	r.Route("/", func(r chi.Router) {
 		r.Get("/{id}", urlServices.GetHandler)
 		r.Post("/", urlServices.CreatePostHandler)
+		r.Post("/api/shorten", urlServices.CreateRestHandler)
 	})
 	r.Get("/health", handlers.HealthCheck)
 	server := &http.Server{
