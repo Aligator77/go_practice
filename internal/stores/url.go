@@ -67,7 +67,12 @@ func (u *URLService) StoreToFile(link string) error {
 			return err
 		}
 
-		defer f.Close()
+		defer func(f *os.File) {
+			err := f.Close()
+			if err != nil {
+				u.logger.Error().Err(err).Msg("Cannot close localStoreFile")
+			}
+		}(f)
 
 		if _, err = f.WriteString(link); err != nil {
 			u.logger.Error().Err(err).Msg("Cannot write to localStoreFile")
@@ -81,10 +86,16 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	if slices.Contains(r.Header.Values("Content-Encoding"), "gzip") {
 		gzipReader, err := gzip.NewReader(r.Body)
-		defer gzipReader.Close()
 		if err != nil {
 			u.logger.Error().Err(err).Msg("failed to create gzip reader")
 		}
+		defer func(gzipReader *gzip.Reader) {
+			err := gzipReader.Close()
+			if err != nil {
+				u.logger.Error().Err(err).Msg("failed to close gzip reader")
+			}
+		}(gzipReader)
+
 		r.Body = io.NopCloser(gzipReader)
 	}
 
@@ -222,6 +233,11 @@ func (u *URLService) NewRedirect(redirect models.Redirect) (id int64, err error)
 	} else {
 		u.EmulateDB[redirect.Redirect] = redirect
 	}
+
+	newUUID, _ := uuid.NewV7()
+	redirect.ID = newUUID.String()
+	dataFile, _ := json.Marshal(redirect)
+	_ = u.StoreToFile(string(dataFile))
 
 	return id, nil
 }

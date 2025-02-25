@@ -19,6 +19,7 @@ import (
 	"github.com/Aligator77/go_practice/internal/stores"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -57,6 +58,10 @@ func main() {
 	errc := make(chan error, 1)
 	doneCh := make(chan struct{})
 	sigc := make(chan os.Signal, 1)
+
+	if err := godotenv.Load(); err != nil {
+		logger.Warn().Msg("error loading .env file")
+	}
 
 	cfg, err := config.New()
 	if err != nil {
