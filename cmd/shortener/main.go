@@ -2,6 +2,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"flag"
 	"github.com/rs/zerolog"
@@ -18,8 +19,6 @@ import (
 	"github.com/Aligator77/go_practice/internal/stores"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	//"github.com/go-kit/kit/log"
-	//"github.com/go-kit/kit/log/level"
 	"github.com/joho/godotenv"
 )
 
@@ -104,7 +103,7 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.NoCache)
-	r.Use(middleware.Compress(5, "text/html", "application/json"))
+	r.Use(middleware.Compress(gzip.DefaultCompression, "text/html", "application/json"))
 	// create own middleware func, to pass logger variable
 	// создали свою функцию, чтобы пробросить логгер
 	r.Use(func(next http.Handler) http.Handler {
