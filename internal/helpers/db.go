@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lib/pq"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 
 	"github.com/Aligator77/go_practice/internal/config"
 )
