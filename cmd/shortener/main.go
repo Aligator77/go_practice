@@ -91,7 +91,7 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateUrlService(db, logger, BaseUrl)
+	urlServices := stores.CreateUrlService(db, logger, BaseUrl, cfg.DisableDbStore)
 
 	r := chi.NewRouter()
 

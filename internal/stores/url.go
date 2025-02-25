@@ -18,16 +18,21 @@ import (
 )
 
 type UrlService struct {
-	Db      *helpers.ConnectionPool
-	BaseUrl string
-	logger  log.Logger
+	Db        *helpers.ConnectionPool
+	BaseUrl   string
+	logger    log.Logger
+	DisableDb string
+	EmulateDb map[string]models.Redirect
 }
 
-func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, str string) (us *UrlService) {
+func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, str string, disableDbStore string) (us *UrlService) {
+
 	us = &UrlService{
-		Db:      db,
-		BaseUrl: str,
-		logger:  logger,
+		Db:        db,
+		BaseUrl:   str,
+		logger:    logger,
+		DisableDb: disableDbStore,
+		EmulateDb: make(map[string]models.Redirect, 0),
 	}
 
 	return us
@@ -80,74 +85,84 @@ func (u *UrlService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (u *UrlService) GetRedirect(id string) (redirect models.Redirect, err error) {
+	if u.DisableDb == "0" {
+		sqlRequest, ctx, cancel := Get(GetRedirect)
+		defer cancel()
 
-	sqlRequest, ctx, cancel := Get(GetRedirect)
-	defer cancel()
-
-	conn, err := u.Db.Conn(ctx)
-	if err != nil {
-		level.Error(u.logger).Log("msg", "GetRedirect get connection failure", "err", err)
-		return redirect, err
-	}
-	defer conn.Close()
-
-	row, err := conn.QueryContext(ctx, sqlRequest, id)
-	if err != nil {
-		level.Error(u.logger).Log(
-			"msg", "GetRedirect exec failure",
-			"err", err,
-			"data", id,
-		)
-
-		return redirect, err
-	}
-
-	for row.Next() {
-
-		if err := row.Scan(
-			&redirect.Url,
-			&redirect.Redirect,
-			&redirect.DateCreate,
-			&redirect.DateUpdate,
-		); err != nil {
-			level.Warn(u.logger).Log("scan failure", "err", err)
-			continue
+		conn, err := u.Db.Conn(ctx)
+		if err != nil {
+			level.Error(u.logger).Log("msg", "GetRedirect get connection failure", "err", err)
+			return redirect, err
 		}
+		defer conn.Close()
+
+		row, err := conn.QueryContext(ctx, sqlRequest, id)
+		if err != nil {
+			level.Error(u.logger).Log(
+				"msg", "GetRedirect exec failure",
+				"err", err,
+				"data", id,
+			)
+
+			return redirect, err
+		}
+
+		for row.Next() {
+
+			if err := row.Scan(
+				&redirect.Url,
+				&redirect.Redirect,
+				&redirect.DateCreate,
+				&redirect.DateUpdate,
+			); err != nil {
+				level.Warn(u.logger).Log("scan failure", "err", err)
+				continue
+			}
+		}
+
+	} else {
+		redirect = u.EmulateDb[id]
 	}
 
 	return redirect, nil
 }
 
 func (u *UrlService) NewRedirect(redirect models.Redirect) (id int64, err error) {
-	sqlRequest, ctx, cancel := Get(InsertRedirects)
-	defer cancel()
 
-	conn, err := u.Db.Conn(ctx)
-	if err != nil {
-		level.Error(u.logger).Log("msg", "NewRedirect get connection failure", "err", err)
-		return id, err
-	}
-	defer conn.Close()
+	if u.DisableDb == "0" {
+		sqlRequest, ctx, cancel := Get(InsertRedirects)
+		defer cancel()
 
-	res, err := conn.ExecContext(ctx, sqlRequest, redirect.IsActive, redirect.Url, redirect.Redirect)
-	if err != nil {
-		level.Error(u.logger).Log(
-			"msg", "NewRedirect exec failure",
-			"err", err,
-			"data", id,
-		)
+		conn, err := u.Db.Conn(ctx)
+		if err != nil {
+			level.Error(u.logger).Log("msg", "NewRedirect get connection failure", "err", err)
+			return id, err
+		}
+		defer conn.Close()
 
-		return id, err
-	}
+		res, err := conn.ExecContext(ctx, sqlRequest, redirect.IsActive, redirect.Url, redirect.Redirect)
+		if err != nil {
+			level.Error(u.logger).Log(
+				"msg", "NewRedirect exec failure",
+				"err", err,
+				"data", id,
+			)
 
-	if affected, err := res.RowsAffected(); affected > 0 {
-		level.Warn(u.logger).Log("msg", "NewRedirect exec has affected rows", "affected", affected)
-	} else if err != nil {
-		level.Error(u.logger).Log(
-			"msg", "NewRedirect exec failure",
-			"err", err,
-			"data", id,
-		)
+			return id, err
+		}
+
+		if affected, err := res.RowsAffected(); affected > 0 {
+			level.Warn(u.logger).Log("msg", "NewRedirect exec has affected rows", "affected", affected)
+		} else if err != nil {
+			level.Error(u.logger).Log(
+				"msg", "NewRedirect exec failure",
+				"err", err,
+				"data", id,
+			)
+		}
+
+	} else {
+		u.EmulateDb[redirect.Redirect] = redirect
 	}
 
 	return id, nil

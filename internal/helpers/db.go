@@ -17,31 +17,33 @@ type ConnectionPool struct {
 
 func CreateDbConn(conf *config.Conf) (cp *ConnectionPool, err error) {
 	cp = new(ConnectionPool)
-	//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-		conf.DB.User,
-		conf.DB.Password,
-		conf.DB.Host,
-		conf.DB.Port,
-		conf.DB.Name,
-	)
-	dsn, err := pq.ParseURL(connString)
-	if err != nil {
-		return nil, err
-	}
-	cp.db, err = sql.Open("postgres", dsn)
-	if err != nil {
-		return nil, err
-	}
+	if conf.DisableDbStore == "0" {
+		//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
+		connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+			conf.DB.User,
+			conf.DB.Password,
+			conf.DB.Host,
+			conf.DB.Port,
+			conf.DB.Name,
+		)
+		dsn, err := pq.ParseURL(connString)
+		if err != nil {
+			return nil, err
+		}
+		cp.db, err = sql.Open("postgres", dsn)
+		if err != nil {
+			return nil, err
+		}
 
-	err = cp.db.Ping()
-	if err != nil {
-		cp.db.Close()
-		return nil, err
-	}
+		err = cp.db.Ping()
+		if err != nil {
+			cp.db.Close()
+			return nil, err
+		}
 
-	cp.db.SetMaxOpenConns(conf.DB.MaxOpenCon)
-	cp.db.SetMaxIdleConns(conf.DB.MaxIdleCon)
+		cp.db.SetMaxOpenConns(conf.DB.MaxOpenCon)
+		cp.db.SetMaxIdleConns(conf.DB.MaxIdleCon)
+	}
 
 	return cp, nil
 }

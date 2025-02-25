@@ -10,9 +10,10 @@ type Conf struct {
 		Host    string `env:"SERVER_HOST" envDefault:"localhost"`
 		Address string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
 	}
-	AppVersion string `env:"APP_VERSION" envDefault:"0.0.1"`
-	BaseUrl    string `env:"BASE_URL" envDefault:"http://localhost:8080"`
-	DB         struct {
+	AppVersion     string `env:"APP_VERSION" envDefault:"0.0.1"`
+	BaseUrl        string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	DisableDbStore string `env:"DISABLE_DB_STORE" envDefault:"0"`
+	DB             struct {
 		Host       string `env:"DB_HOST" envDefault:"localhost"`
 		Port       string `env:"DB_PORT" envDefault:"5432"`
 		User       string `env:"DB_USER" envDefault:"yapr"`
