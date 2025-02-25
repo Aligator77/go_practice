@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/rs/zerolog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,8 +11,6 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Aligator77/go_practice/internal/config"
@@ -22,20 +21,17 @@ import (
 const localhost = "http://localhost"
 
 func TestUrlGeneration(t *testing.T) {
-	logger := log.NewJSONLogger(os.Stdout)
-	logger = log.NewSyncLogger(logger)
-	logger = level.NewFilter(logger, level.AllowDebug())
-	logger = log.With(logger, "caller", log.DefaultCaller, "ts", log.DefaultTimestampUTC)
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	cfg, err := config.New()
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to load config", "err", err)
+		logger.Error().Err(err).Msg("failed to load config")
 		os.Exit(exitCodeFailure)
 	}
 
 	db, err := helpers.CreateDbConn(&cfg)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to create db connection", "err", err)
+		logger.Error().Err(err).Msg("failed to create db connection")
 		os.Exit(exitCodeFailure)
 	}
 

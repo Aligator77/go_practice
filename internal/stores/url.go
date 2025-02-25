@@ -3,33 +3,32 @@ package stores
 import (
 	"encoding/json"
 	"github.com/gofrs/uuid"
+	"github.com/rs/zerolog"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 
 	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/models"
 	"github.com/Aligator77/go_practice/internal/server"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 )
 
 type UrlService struct {
 	Db         *helpers.ConnectionPool
 	BaseUrl    string
-	logger     log.Logger
+	logger     zerolog.Logger
 	LocalStore string
 	DisableDb  string
 	EmulateDb  map[string]models.Redirect
 }
 
-func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, baseUrl string, localStore string, disableDbStore string) (us *UrlService) {
+func CreateUrlService(db *helpers.ConnectionPool, logger zerolog.Logger, baseUrl string, localStore string, disableDbStore string) (us *UrlService) {
 	us = &UrlService{
 		Db:         db,
 		BaseUrl:    baseUrl,
@@ -62,14 +61,14 @@ func (u *UrlService) StoreToFile(link string) error {
 	if len(u.LocalStore) > 0 {
 		f, err := os.OpenFile(u.LocalStore, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
-			level.Error(u.logger).Log("msg", "Cannot open localStoreFile", "err", err)
+			u.logger.Error().Err(err).Msg("Cannot open localStoreFile")
 			return err
 		}
 
 		defer f.Close()
 
 		if _, err = f.WriteString(link); err != nil {
-			level.Error(u.logger).Log("msg", "Cannot write to localStoreFile", "err", err)
+			u.logger.Error().Err(err).Msg("Cannot write to localStoreFile")
 			return err
 		}
 	}
@@ -146,19 +145,14 @@ func (u *UrlService) GetRedirect(id string) (redirect models.Redirect, err error
 
 		conn, err := u.Db.Conn(ctx)
 		if err != nil {
-			level.Error(u.logger).Log("msg", "GetRedirect get connection failure", "err", err)
+			u.logger.Error().Err(err).Msg("GetRedirect get connection failure")
 			return redirect, err
 		}
 		defer conn.Close()
 
 		row, err := conn.QueryContext(ctx, sqlRequest, id)
 		if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "GetRedirect exec failure",
-				"err", err,
-				"data", id,
-			)
-
+			u.logger.Error().Err(err).Str("data", id).Msg("GetRedirect exec failure")
 			return redirect, err
 		}
 
@@ -170,7 +164,7 @@ func (u *UrlService) GetRedirect(id string) (redirect models.Redirect, err error
 				&redirect.DateCreate,
 				&redirect.DateUpdate,
 			); err != nil {
-				level.Warn(u.logger).Log("scan failure", "err", err)
+				u.logger.Error().Err(err).Msg("scan failure")
 				continue
 			}
 		}
@@ -190,30 +184,21 @@ func (u *UrlService) NewRedirect(redirect models.Redirect) (id int64, err error)
 
 		conn, err := u.Db.Conn(ctx)
 		if err != nil {
-			level.Error(u.logger).Log("msg", "NewRedirect get connection failure", "err", err)
+			u.logger.Error().Err(err).Msg("NewRedirect get connection failure")
 			return id, err
 		}
 		defer conn.Close()
 
 		res, err := conn.ExecContext(ctx, sqlRequest, redirect.IsActive, redirect.Url, redirect.Redirect)
 		if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "NewRedirect exec failure",
-				"err", err,
-				"data", id,
-			)
-
+			u.logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirect get connection failure")
 			return id, err
 		}
 
 		if affected, err := res.RowsAffected(); affected > 0 {
-			level.Warn(u.logger).Log("msg", "NewRedirect exec has affected rows", "affected", affected)
+			u.logger.Warn().Str("affected", strconv.FormatInt(affected, 10)).Msg("NewRedirect exec has affected rows")
 		} else if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "NewRedirect exec failure",
-				"err", err,
-				"data", id,
-			)
+			u.logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirect get connection failure")
 		}
 
 	} else {
@@ -230,25 +215,22 @@ func (u *UrlService) GetHandler(w http.ResponseWriter, r *http.Request) {
 	if len(id) > 0 {
 		redirect, err := u.GetRedirect(id)
 		if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "GetRedirect error",
-				"err", err,
-				"data", id,
-			)
+			u.logger.Error().Err(err).Str("data", id).Msg("GetRedirect error")
+
 			http.Error(w, "GetRedirect error", http.StatusBadRequest)
 		}
 		if redirect.Redirect != "" {
 			fullRedirect := u.MakeFullUrl(redirect.Url)
+			u.logger.Warn().Strs("data", []string{id, redirect.Url, redirect.Redirect}).Msg("GetRedirect success")
 
-			level.Warn(u.logger).Log("msg", "GetRedirect success", "redirect.Url", redirect.Url, "redirect.Redirect", redirect.Redirect)
 			w.Header().Set("Location", fullRedirect)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 			http.Redirect(w, r, fullRedirect, http.StatusTemporaryRedirect)
 		} else {
-			level.Error(u.logger).Log("msg", "GetRedirect not found", "id", id, "redirect.Url", redirect.Url, "redirect.Redirect", redirect.Redirect)
+			u.logger.Error().Err(err).Strs("data", []string{id, redirect.Url, redirect.Redirect}).Msg("GetRedirect not found")
 		}
 	} else {
-		level.Error(u.logger).Log("msg", "GetRedirect not found id empty", "id", id)
+		u.logger.Error().Str("data", id).Msg("GetRedirect not found id empty")
 		http.Error(w, "GetRedirect error", http.StatusBadRequest)
 	}
 }

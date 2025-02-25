@@ -4,23 +4,23 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/rs/zerolog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-	"github.com/joho/godotenv"
-	_ "github.com/rs/zerolog"
 
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/handlers"
 	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/stores"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	//"github.com/go-kit/kit/log"
+	//"github.com/go-kit/kit/log/level"
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -51,10 +51,7 @@ const (
 // TODO add GET /{id} if exist url return 307 and info, else 400 err
 // функция main вызывается автоматически при запуске приложения
 func main() {
-	logger := log.NewJSONLogger(os.Stdout)
-	logger = log.NewSyncLogger(logger)
-	logger = level.NewFilter(logger, level.AllowDebug())
-	logger = log.With(logger, "caller", log.DefaultCaller, "ts", log.DefaultTimestampUTC)
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -64,12 +61,12 @@ func main() {
 	sigc := make(chan os.Signal, 1)
 
 	if err := godotenv.Load(); err != nil {
-		level.Warn(logger).Log("msg", "error loading .env file")
+		logger.Warn().Msg("error loading .env file")
 	}
 
 	cfg, err := config.New()
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to load config", "err", err)
+		logger.Error().Err(err).Msg("failed to load config")
 		os.Exit(exitCodeFailure)
 	}
 	serverAddrFlag := flag.String("a", "", "input server address")
@@ -94,7 +91,7 @@ func main() {
 
 	db, err := helpers.CreateDbConn(&cfg)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to create db connection", "err", err)
+		logger.Error().Err(err).Msg("failed to create db connection")
 		os.Exit(exitCodeFailure)
 	}
 
@@ -116,7 +113,7 @@ func main() {
 			// вызываем следующий обработчик
 			next.ServeHTTP(w, r)
 			duration := time.Since(start)
-			level.Warn(logger).Log("Time Duration", duration, "Method", r.Method, "URL.Path", r.URL.Path)
+			logger.Info().Strs("data", []string{"Time Duration", string(duration), "Method", r.Method, "URL.Path", r.URL.Path})
 		})
 	})
 
@@ -133,8 +130,7 @@ func main() {
 	go func() {
 		err = server.ListenAndServe()
 	}()
-
-	level.Info(logger).Log("msg", "go service Started")
+	logger.Info().Msg("go service Started")
 
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
 
@@ -146,7 +142,8 @@ func main() {
 	go func() {
 		select {
 		case sig := <-sigc:
-			level.Info(logger).Log("msg", "received signal, exiting", "signal", sig)
+			logger.Info().Str("signal", sig.String()).Msg("received signal, exiting")
+
 			err := server.Shutdown(ctx)
 			if err != nil {
 				return
@@ -155,11 +152,11 @@ func main() {
 			signal.Stop(sigc)
 			close(doneCh)
 		case <-errc:
-			level.Info(logger).Log("msg", "now exiting with error", "error code", exitCodeFailure)
+			logger.Info().Str("error code", strconv.Itoa(exitCodeFailure)).Msg("now exiting with error")
 			os.Exit(exitCodeFailure)
 		}
 	}()
 
 	<-doneCh
-	level.Info(logger).Log("msg", "goodbye")
+	logger.Info().Msg("goodbye")
 }
