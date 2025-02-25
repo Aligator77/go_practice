@@ -113,7 +113,7 @@ func main() {
 			// вызываем следующий обработчик
 			next.ServeHTTP(w, r)
 			duration := time.Since(start)
-			logger.Info().Strs("data", []string{"Time Duration", string(duration), "Method", r.Method, "URL.Path", r.URL.Path})
+			logger.Info().Strs("data", []string{"Time Duration", strconv.FormatInt(int64(duration), 10), "Method", r.Method, "URL.Path", r.URL.Path})
 		})
 	})
 
