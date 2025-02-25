@@ -39,7 +39,7 @@ func TestUrlGeneration(t *testing.T) {
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateUrlService(db, logger, cfg.BaseUrl, cfg.DisableDbStore)
+	urlServices := stores.CreateUrlService(db, logger, cfg.BaseUrl, cfg.LocalStore, cfg.DisableDbStore)
 	generatedUrl := ""
 
 	link := helpers.GenerateRandomUrl(10)

@@ -25,18 +25,18 @@ type UrlService struct {
 	BaseUrl    string
 	logger     log.Logger
 	LocalStore string
-	DisableDb string
-	EmulateDb map[string]models.Redirect
+	DisableDb  string
+	EmulateDb  map[string]models.Redirect
 }
 
-func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, str string, localStore string, disableDbStore string) (us *UrlService) {
+func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, baseUrl string, localStore string, disableDbStore string) (us *UrlService) {
 	us = &UrlService{
 		Db:         db,
-		BaseUrl:    str,
+		BaseUrl:    baseUrl,
 		logger:     logger,
 		LocalStore: localStore,
-		DisableDb: disableDbStore,
-		EmulateDb: make(map[string]models.Redirect, 0),
+		DisableDb:  disableDbStore,
+		EmulateDb:  make(map[string]models.Redirect, 0),
 	}
 
 	return us
