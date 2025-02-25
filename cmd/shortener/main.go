@@ -6,11 +6,9 @@ import (
 	"context"
 	"flag"
 	"github.com/rs/zerolog"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
-	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -105,7 +103,7 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.NoCache)
-	//r.Use(middleware.Compress(gzip.DefaultCompression, "text/html", "application/json"))
+	r.Use(middleware.Compress(gzip.DefaultCompression, "text/html", "application/json"))
 
 	// create own middleware func, to pass logger variable
 	// создали свою функцию, чтобы пробросить логгер
@@ -116,20 +114,6 @@ func main() {
 			next.ServeHTTP(w, r)
 			duration := time.Since(start)
 			logger.Info().Strs("data", []string{"Time Duration", strconv.FormatInt(int64(duration), 10), "Method", r.Method, "URL.Path", r.URL.Path})
-		})
-	})
-	// create own gzip func
-	// создали свою gzip функцию, для автотеста 8
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if slices.Contains(r.Header.Values("Content-Encoding"), "gzip") {
-				gzipReader, err := gzip.NewReader(r.Body)
-				defer gzipReader.Close()
-				if err != nil {
-					logger.Error().Err(err).Msg("failed to create gzip reader")
-				}
-				r.Body = io.NopCloser(gzipReader)
-			}
 		})
 	})
 
