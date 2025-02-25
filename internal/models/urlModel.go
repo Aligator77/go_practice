@@ -14,6 +14,7 @@ func (u URLData) Bind(r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	//lint:ignore need for chi.Bind
 	u.URL = string(url)
 
 	return nil

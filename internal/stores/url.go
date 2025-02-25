@@ -47,7 +47,7 @@ func (u *URLService) Shutdown() error {
 	return err
 }
 
-func (u *URLService) MakeFullUrl(link string) string {
+func (u *URLService) MakeFullURL(link string) string {
 	if !strings.Contains(link, "http") && len(u.BaseURL) > 0 {
 		fullRedirect, _ := url.Parse(u.BaseURL)
 		fullRedirect.Path = link
@@ -98,7 +98,7 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
 
-	_, err = w.Write([]byte(u.MakeFullUrl(newRedirect)))
+	_, err = w.Write([]byte(u.MakeFullURL(newRedirect)))
 	if err != nil {
 		return
 	}
@@ -135,7 +135,9 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	dataFile, _ := json.Marshal(redirect)
 	_ = u.StoreToFile(string(dataFile))
 
-	render.JSON(w, r, u.MakeFullUrl(newRedirect))
+	render.Status(r, http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
+	render.JSON(w, r, u.MakeFullURL(newRedirect))
 	u.EmulateDB[redirect.Redirect] = *redirect
 	//_ = render.Render(w, r, NewArticleResponse(article))
 }
@@ -222,7 +224,7 @@ func (u *URLService) GetHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "GetRedirect error", http.StatusBadRequest)
 		}
 		if redirect.Redirect != "" {
-			fullRedirect := u.MakeFullUrl(redirect.URL)
+			fullRedirect := u.MakeFullURL(redirect.URL)
 			u.logger.Warn().Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect success")
 
 			w.Header().Set("Location", fullRedirect)

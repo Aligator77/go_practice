@@ -78,7 +78,7 @@ func TestUrlGeneration(t *testing.T) {
 	})
 
 	t.Run("Wrong GET", func(t *testing.T) {
-		wrongLink := urlServices.MakeFullUrl("abcde")
+		wrongLink := urlServices.MakeFullURL("abcde")
 		r := httptest.NewRequest(http.MethodGet, wrongLink, nil)
 		w := httptest.NewRecorder()
 
