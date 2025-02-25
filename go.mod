@@ -1,6 +1,6 @@
 module github.com/Aligator77/go_practice
 
-go 1.23.1
+go 1.22.12
 
 require (
 	github.com/go-chi/chi/v5 v5.2.1
