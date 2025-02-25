@@ -11,8 +11,8 @@ type Conf struct {
 		Address string `env:"SERVER_ADDRESS" envDefault:"localhost:8080"`
 	}
 	AppVersion     string `env:"APP_VERSION" envDefault:"0.0.1"`
-	BaseUrl        string `env:"BASE_URL" envDefault:"http://localhost:8080"`
-	DisableDbStore string `env:"DISABLE_DB_STORE" envDefault:"1"`
+	BaseURL        string `env:"BASE_URL" envDefault:"http://localhost:8080"`
+	DisableDBStore string `env:"DISABLE_DB_STORE" envDefault:"1"`
 	LocalStore     string `env:"FILE_STORAGE_PATH" envDefault:"/tmp/short-url-db.json"`
 	DB             struct {
 		Host       string `env:"DB_HOST" envDefault:"localhost"`

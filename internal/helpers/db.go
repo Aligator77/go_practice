@@ -14,9 +14,9 @@ type ConnectionPool struct {
 	db *sql.DB
 }
 
-func CreateDbConn(conf *config.Conf) (cp *ConnectionPool, err error) {
+func CreateDBConn(conf *config.Conf) (cp *ConnectionPool, err error) {
 	cp = new(ConnectionPool)
-	if conf.DisableDbStore == "0" {
+	if conf.DisableDBStore == "0" {
 		//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
 		connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 			conf.DB.User,

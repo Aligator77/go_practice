@@ -29,17 +29,17 @@ func TestUrlGeneration(t *testing.T) {
 		os.Exit(exitCodeFailure)
 	}
 
-	db, err := helpers.CreateDbConn(&cfg)
+	db, err := helpers.CreateDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateUrlService(db, logger, cfg.BaseUrl, cfg.LocalStore, cfg.DisableDbStore)
-	generatedUrl := ""
+	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
+	generatedURL := ""
 
-	link := helpers.GenerateRandomUrl(10)
-	path := helpers.GenerateRandomUrl(15)
+	link := helpers.GenerateRandomURL(10)
+	path := helpers.GenerateRandomURL(15)
 	parsedLink, _ := url.Parse(localhost)
 	parsedLink.Host = link
 	parsedLink.Path = path
@@ -53,12 +53,12 @@ func TestUrlGeneration(t *testing.T) {
 		urlServices.CreatePostHandler(w, r)
 
 		assert.Equal(t, http.StatusCreated, w.Code, "Код ответа не совпадает с ожидаемым")
-		generatedUrl = w.Body.String()
+		generatedURL = w.Body.String()
 
 	})
 
 	t.Run("GET", func(t *testing.T) {
-		needFullPath, _ := url.Parse(generatedUrl)
+		needFullPath, _ := url.Parse(generatedURL)
 		needPath := strings.Replace(needFullPath.Path, "/", "", -1)
 
 		r := httptest.NewRequest(http.MethodGet, needFullPath.Path, nil)

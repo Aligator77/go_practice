@@ -70,7 +70,7 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 	serverAddrFlag := flag.String("a", "", "input server address")
-	baseUrlFlag := flag.String("b", "", "input server address")
+	baseURLFlag := flag.String("b", "", "input server address")
 	localStoreFile := flag.String("f", "", "input server address")
 	flag.Parse()
 
@@ -79,9 +79,9 @@ func main() {
 		serverAddr = *serverAddrFlag
 	}
 
-	BaseUrl := cfg.BaseUrl
-	if len(*baseUrlFlag) > 0 && helpers.CheckFlagHttp(baseUrlFlag) {
-		BaseUrl = *baseUrlFlag
+	BaseURL := cfg.BaseURL
+	if len(*baseURLFlag) > 0 && helpers.CheckFlagHTTP(baseURLFlag) {
+		BaseURL = *baseURLFlag
 	}
 
 	localStore := cfg.LocalStore
@@ -89,13 +89,13 @@ func main() {
 		localStore = *localStoreFile
 	}
 
-	db, err := helpers.CreateDbConn(&cfg)
+	db, err := helpers.CreateDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateUrlService(db, logger, BaseUrl, localStore, cfg.DisableDbStore)
+	urlServices := stores.CreateURLService(db, logger, BaseURL, localStore, cfg.DisableDBStore)
 
 	r := chi.NewRouter()
 

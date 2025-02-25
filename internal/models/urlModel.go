@@ -5,16 +5,16 @@ import (
 	"net/http"
 )
 
-type UrlData struct {
-	Url string `json:"url"`
+type URLData struct {
+	URL string `json:"url"`
 }
 
-func (u UrlData) Bind(r *http.Request) error {
+func (u URLData) Bind(r *http.Request) error {
 	url, err := io.ReadAll(r.Body)
 	if err != nil {
 		return err
 	}
-	u.Url = string(url)
+	u.URL = string(url)
 
 	return nil
 }
