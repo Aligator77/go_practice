@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Aligator77/go_practice/internal/config"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,10 +9,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/stores"
 )
@@ -60,17 +62,23 @@ func TestUrlGeneration(t *testing.T) {
 	})
 
 	t.Run("GET", func(t *testing.T) {
-		needPath, _ := url.Parse(generatedUrl)
-		r := httptest.NewRequest(http.MethodGet, needPath.Path, nil)
+		needFullPath, _ := url.Parse(generatedUrl)
+		needPath := strings.Replace(needFullPath.Path, "/", "", -1)
+
+		r := httptest.NewRequest(http.MethodGet, needFullPath.Path, nil)
 		w := httptest.NewRecorder()
+
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", needPath)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 
 		// вызовем хендлер как обычную функцию, без запуска самого сервера
 		urlServices.GetHandler(w, r)
 
 		assert.Equal(t, http.StatusTemporaryRedirect, w.Code, "Код ответа не совпадает с ожидаемым")
 
-		// проверим корректность полученного тела ответа
-		assert.Equal(t, parsedLink.String(), w.Header().Get("Location"), "Тело ответа не совпадает с ожидаемым")
+		// проверим корректность полученного заголовка ответа
+		assert.Equal(t, parsedLink.String(), w.Header().Get("Location"), "Заголовок ответа не совпадает с ожидаемым")
 	})
 
 	t.Run("Wrong GET", func(t *testing.T) {
