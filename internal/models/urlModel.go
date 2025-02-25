@@ -14,8 +14,9 @@ func (u URLData) Bind(r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	//lint:ignore need for chi.Bind
+	//lint:ignore SA4000 need for chi.Bind
 	u.URL = string(url)
+	_ = u.URL
 
 	return nil
 }

@@ -11,11 +11,14 @@ import (
 )
 
 type ConnectionPool struct {
-	db *sql.DB
+	db             *sql.DB
+	DisableDBStore string
 }
 
 func CreateDBConn(conf *config.Conf) (cp *ConnectionPool, err error) {
-	cp = new(ConnectionPool)
+	cp = &ConnectionPool{
+		DisableDBStore: conf.DisableDBStore,
+	}
 	if conf.DisableDBStore == "0" {
 		//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
 		connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
@@ -63,9 +66,16 @@ func (cp *ConnectionPool) Conn(ctx context.Context) (*sql.Conn, error) {
 }
 
 func (cp *ConnectionPool) DB() *sql.DB {
-	return cp.db
+	var d *sql.DB
+	if cp.DisableDBStore == "0" {
+		d = cp.db
+	}
+	return d
 }
 
 func (cp *ConnectionPool) Close() error {
-	return cp.db.Close()
+	if cp.DisableDBStore == "0" {
+		return cp.db.Close()
+	}
+	return nil
 }
