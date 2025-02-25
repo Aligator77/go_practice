@@ -4,16 +4,17 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-	"github.com/joho/godotenv"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
+	"github.com/joho/godotenv"
 
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/handlers"
