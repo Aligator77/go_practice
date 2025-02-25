@@ -9,6 +9,10 @@ type URLData struct {
 	URL string `json:"url"`
 }
 
+type URLDataResponse struct {
+	Result string `json:"result"`
+}
+
 func (u URLData) Bind(r *http.Request) error {
 	url, err := io.ReadAll(r.Body)
 	if err != nil {

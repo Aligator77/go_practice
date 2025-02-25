@@ -135,9 +135,11 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	dataFile, _ := json.Marshal(redirect)
 	_ = u.StoreToFile(string(dataFile))
 
+	res := models.URLDataResponse{Result: u.MakeFullURL(newRedirect)}
+
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
-	render.JSON(w, r, u.MakeFullURL(newRedirect))
+	render.JSON(w, r, res)
 	u.EmulateDB[redirect.Redirect] = *redirect
 	//_ = render.Render(w, r, NewArticleResponse(article))
 }
