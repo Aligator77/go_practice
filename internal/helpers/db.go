@@ -4,28 +4,36 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/lib/pq"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 
 	"github.com/Aligator77/go_practice/internal/config"
 )
 
 type ConnectionPool struct {
-	db *sql.DB
+	db             *sql.DB
+	DisableDBStore string
 }
 
-func CreateDbConn(conf *config.Conf) (cp *ConnectionPool, err error) {
-	cp = new(ConnectionPool)
-	if conf.DisableDbStore == "0" {
-		//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
-		connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-			conf.DB.User,
-			conf.DB.Password,
-			conf.DB.Host,
-			conf.DB.Port,
-			conf.DB.Name,
-		)
+func CreateDBConn(conf *config.Conf) (cp *ConnectionPool, err error) {
+	cp = &ConnectionPool{
+		DisableDBStore: conf.DisableDBStore,
+	}
+	if conf.DisableDBStore == "0" {
+		connString := ""
+		if conf.DB.User != "" {
+			//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
+			connString = fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+				conf.DB.User,
+				conf.DB.Password,
+				conf.DB.Host,
+				conf.DB.Port,
+				conf.DB.Name,
+			)
+		}
+		if conf.DB.DSN != "" {
+			connString = conf.DB.DSN
+		}
 		dsn, err := pq.ParseURL(connString)
 		if err != nil {
 			return nil, err
@@ -64,9 +72,26 @@ func (cp *ConnectionPool) Conn(ctx context.Context) (*sql.Conn, error) {
 }
 
 func (cp *ConnectionPool) DB() *sql.DB {
-	return cp.db
+	var d *sql.DB
+	if cp.DisableDBStore == "0" {
+		d = cp.db
+	}
+	return d
 }
 
 func (cp *ConnectionPool) Close() error {
-	return cp.db.Close()
+	if cp.DisableDBStore == "0" {
+		return cp.db.Close()
+	}
+	return nil
+}
+
+func (cp *ConnectionPool) CheckConnection(ctx context.Context) bool {
+	if cp.DisableDBStore == "0" {
+		err := cp.db.PingContext(ctx)
+		if err != nil {
+			return false
+		}
+	}
+	return true
 }

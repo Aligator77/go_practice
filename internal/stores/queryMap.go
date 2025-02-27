@@ -7,7 +7,9 @@ import (
 
 const (
 	GetRedirect = iota
-	InsertRedirects
+	InsertRedirect
+	InsertBatchRedirects
+	GetRedirectByUrl
 )
 
 type SQLQuery struct {
@@ -18,15 +20,28 @@ type SQLQuery struct {
 var queryMap = make(map[int]SQLQuery)
 
 func init() {
-	queryMap[InsertRedirects] = SQLQuery{
+	queryMap[InsertRedirect] = SQLQuery{
 		SQLRequest: `
 			insert into redirects
-			(is_active
+			(id
+			, is_active
 			, url
 			, redirect
 			, date_create
 			, date_update)
-			values ($1, $2, $3, NOW(), NOW())
+			values ($1, $2, $3, $4, NOW(), NOW())
+		`,
+		ctxTimeout: 2 * time.Minute}
+	queryMap[InsertBatchRedirects] = SQLQuery{
+		SQLRequest: `
+			insert into redirects
+			(id
+			, is_active
+			, url
+			, redirect
+			, date_create
+			, date_update)
+			values $1
 		`,
 		ctxTimeout: 2 * time.Minute}
 	queryMap[GetRedirect] = SQLQuery{
@@ -37,6 +52,18 @@ func init() {
 				 , date_update
 			from redirects
 			where is_active = B'1' and redirect = $1 limit 1
+		`,
+		ctxTimeout: 2 * time.Minute,
+	}
+	queryMap[GetRedirectByUrl] = SQLQuery{
+		SQLRequest: `
+			select id 
+			     ,	url
+			     , redirect
+			     , date_create
+				 , date_update
+			from redirects
+			where is_active = B'1' and url = $1 limit 1
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}

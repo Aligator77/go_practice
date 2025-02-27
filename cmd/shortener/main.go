@@ -2,22 +2,23 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
-	"flag"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
-	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
+
 	"github.com/Aligator77/go_practice/internal/config"
+	"github.com/Aligator77/go_practice/internal/controllers"
 	"github.com/Aligator77/go_practice/internal/handlers"
-	_ "github.com/Aligator77/go_practice/internal/handlers"
 	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/stores"
 )
@@ -50,10 +51,7 @@ const (
 // TODO add GET /{id} if exist url return 307 and info, else 400 err
 // функция main вызывается автоматически при запуске приложения
 func main() {
-	logger := log.NewJSONLogger(os.Stdout)
-	logger = log.NewSyncLogger(logger)
-	logger = level.NewFilter(logger, level.AllowDebug())
-	logger = log.With(logger, "caller", log.DefaultCaller, "ts", log.DefaultTimestampUTC)
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -63,41 +61,21 @@ func main() {
 	sigc := make(chan os.Signal, 1)
 
 	if err := godotenv.Load(); err != nil {
-		level.Warn(logger).Log("msg", "error loading .env file")
+		logger.Warn().Msg("error loading .env file")
 	}
 
 	cfg, err := config.New()
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to load config", "err", err)
+		logger.Error().Err(err).Msg("failed to load config")
 		os.Exit(exitCodeFailure)
 	}
-	serverAddrFlag := flag.String("a", "", "input server address")
-	baseUrlFlag := flag.String("b", "", "input server address")
-	localStoreFile := flag.String("f", "", "input server address")
-	flag.Parse()
 
-	serverAddr := cfg.Server.Address
-	if len(*serverAddrFlag) > 0 && helpers.CheckFlag(serverAddrFlag) {
-		serverAddr = *serverAddrFlag
-	}
-
-	BaseUrl := cfg.BaseUrl
-	if len(*baseUrlFlag) > 0 && helpers.CheckFlagHttp(baseUrlFlag) {
-		BaseUrl = *baseUrlFlag
-	}
-
-	localStore := cfg.LocalStore
-	if len(*localStoreFile) > 0 {
-		localStore = *localStoreFile
-	}
-
-	db, err := helpers.CreateDbConn(&cfg)
+	db, err := helpers.CreateDBConn(&cfg)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to create db connection", "err", err)
-		os.Exit(exitCodeFailure)
+		logger.Error().Err(err).Msg("failed to create db connection")
 	}
-
-	urlServices := stores.CreateUrlService(db, logger, BaseUrl, localStore, cfg.DisableDbStore)
+	dbController := controllers.NewDBController(db, ctx)
+	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
 
 	r := chi.NewRouter()
 
@@ -106,7 +84,8 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.NoCache)
-	r.Use(middleware.Compress(5, "text/html", "application/json"))
+	r.Use(middleware.Compress(gzip.DefaultCompression, "text/html", "application/json"))
+
 	// create own middleware func, to pass logger variable
 	// создали свою функцию, чтобы пробросить логгер
 	r.Use(func(next http.Handler) http.Handler {
@@ -115,7 +94,7 @@ func main() {
 			// вызываем следующий обработчик
 			next.ServeHTTP(w, r)
 			duration := time.Since(start)
-			level.Warn(logger).Log("Time Duration", duration, "Method", r.Method, "URL.Path", r.URL.Path)
+			logger.Info().Strs("data", []string{"Time Duration", strconv.FormatInt(int64(duration), 10), "Method", r.Method, "URL.Path", r.URL.Path})
 		})
 	})
 
@@ -123,17 +102,18 @@ func main() {
 		r.Get("/{id}", urlServices.GetHandler)
 		r.Post("/", urlServices.CreatePostHandler)
 		r.Post("/api/shorten", urlServices.CreateRestHandler)
+		r.Post("/api/shorten/batch", urlServices.CreateBatchHandler)
+		r.Get("/ping", dbController.CheckConnectHandler)
 	})
 	r.Get("/health", handlers.HealthCheck)
 	server := &http.Server{
-		Addr:    serverAddr,
+		Addr:    cfg.Server.Address,
 		Handler: r,
 	}
 	go func() {
 		err = server.ListenAndServe()
 	}()
-
-	level.Info(logger).Log("msg", "go service Started")
+	logger.Info().Msg("go service Started")
 
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
 
@@ -145,7 +125,8 @@ func main() {
 	go func() {
 		select {
 		case sig := <-sigc:
-			level.Info(logger).Log("msg", "received signal, exiting", "signal", sig)
+			logger.Info().Str("signal", sig.String()).Msg("received signal, exiting")
+
 			err := server.Shutdown(ctx)
 			if err != nil {
 				return
@@ -154,11 +135,11 @@ func main() {
 			signal.Stop(sigc)
 			close(doneCh)
 		case <-errc:
-			level.Info(logger).Log("msg", "now exiting with error", "error code", exitCodeFailure)
+			logger.Info().Str("error code", strconv.Itoa(exitCodeFailure)).Msg("now exiting with error")
 			os.Exit(exitCodeFailure)
 		}
 	}()
 
 	<-doneCh
-	level.Info(logger).Log("msg", "goodbye")
+	logger.Info().Msg("goodbye")
 }

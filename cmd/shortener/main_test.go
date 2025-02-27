@@ -1,98 +1,90 @@
 package main
 
 import (
+	"context"
+	"github.com/rs/zerolog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"os"
+	"strings"
 	"testing"
 
-	"github.com/go-resty/resty/v2"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Aligator77/go_practice/internal/config"
+	"github.com/Aligator77/go_practice/internal/helpers"
+	"github.com/Aligator77/go_practice/internal/stores"
 )
 
-func TestWebhook(t *testing.T) {
-	// описываем ожидаемое тело ответа при успешном запросе
-	successBody := `{
-        "response": {
-            "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-    }`
+const localhost = "http://localhost"
 
-	// описываем набор данных: метод запроса, ожидаемый код ответа, ожидаемое тело
-	testCases := []struct {
-		method       string
-		expectedCode int
-		expectedBody string
-	}{
-		{method: http.MethodGet, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodPut, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodDelete, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodPost, expectedCode: http.StatusOK, expectedBody: successBody},
+func TestUrlGeneration(t *testing.T) {
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+
+	cfg, err := config.New()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to load config")
+		os.Exit(exitCodeFailure)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.method, func(t *testing.T) {
-			//r := httptest.NewRequest(tc.method, "/", nil)
-			w := httptest.NewRecorder()
-
-			// вызовем хендлер как обычную функцию, без запуска самого сервера
-			//webhook(w, r)
-
-			assert.Equal(t, tc.expectedCode, w.Code, "Код ответа не совпадает с ожидаемым")
-			// проверим корректность полученного тела ответа, если мы его ожидаем
-			if tc.expectedBody != "" {
-				// assert.JSONEq помогает сравнить две JSON-строки
-				assert.JSONEq(t, tc.expectedBody, w.Body.String(), "Тело ответа не совпадает с ожидаемым")
-			}
-		})
-	}
-}
-
-func TestWebhook2(t *testing.T) {
-	// тип http.HandlerFunc реализует интерфейс http.Handler
-	// это поможет передать хендлер тестовому серверу
-	//handler := http.HandlerFunc(webhook)
-	// запускаем тестовый сервер, будет выбран первый свободный порт
-	//srv := httptest.NewServer(handler)
-	// останавливаем сервер после завершения теста
-	//defer srv.Close()
-
-	// ожидаемое содержимое тела ответа при успешном запросе
-	successBody := `{
-        "response": {
-            "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-    }`
-
-	// описываем набор данных: метод запроса, ожидаемый код ответа, ожидаемое тело
-	testCases := []struct {
-		method       string
-		expectedCode int
-		expectedBody string
-	}{
-		{method: http.MethodGet, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodPut, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodDelete, expectedCode: http.StatusMethodNotAllowed, expectedBody: ""},
-		{method: http.MethodPost, expectedCode: http.StatusOK, expectedBody: successBody},
+	db, err := helpers.CreateDBConn(&cfg)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to create db connection")
+		os.Exit(exitCodeFailure)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.method, func(t *testing.T) {
-			// делаем запрос с помощью библиотеки resty к адресу запущенного сервера,
-			// который хранится в поле URL соответствующей структуры
-			req := resty.New().R()
-			req.Method = tc.method
-			//req.URL = srv.URL
+	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
+	generatedURL := ""
 
-			resp, err := req.Send()
-			assert.NoError(t, err, "error making HTTP request")
+	link := helpers.GenerateRandomURL(10)
+	path := helpers.GenerateRandomURL(15)
+	parsedLink, _ := url.Parse(localhost)
+	parsedLink.Host = link
+	parsedLink.Path = path
 
-			assert.Equal(t, tc.expectedCode, resp.StatusCode(), "Response code didn't match expected")
-			// проверяем корректность полученного тела ответа, если мы его ожидаем
-			if tc.expectedBody != "" {
-				assert.JSONEq(t, tc.expectedBody, string(resp.Body()))
-			}
-		})
-	}
+	t.Run("POST", func(t *testing.T) {
+		body := strings.NewReader(parsedLink.String())
+		r := httptest.NewRequest(http.MethodPost, "/", body)
+		w := httptest.NewRecorder()
+
+		// вызовем хендлер как обычную функцию, без запуска самого сервера
+		urlServices.CreatePostHandler(w, r)
+
+		assert.Equal(t, http.StatusCreated, w.Code, "Код ответа не совпадает с ожидаемым")
+		generatedURL = w.Body.String()
+
+	})
+
+	t.Run("GET", func(t *testing.T) {
+		needFullPath, _ := url.Parse(generatedURL)
+		needPath := strings.Replace(needFullPath.Path, "/", "", -1)
+
+		r := httptest.NewRequest(http.MethodGet, needFullPath.Path, nil)
+		w := httptest.NewRecorder()
+
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("id", needPath)
+		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+
+		// вызовем хендлер как обычную функцию, без запуска самого сервера
+		urlServices.GetHandler(w, r)
+
+		assert.Equal(t, http.StatusTemporaryRedirect, w.Code, "Код ответа не совпадает с ожидаемым")
+
+		// проверим корректность полученного заголовка ответа
+		assert.Equal(t, parsedLink.String(), w.Header().Get("Location"), "Заголовок ответа не совпадает с ожидаемым")
+	})
+
+	t.Run("Wrong GET", func(t *testing.T) {
+		wrongLink := urlServices.MakeFullURL("abcde")
+		r := httptest.NewRequest(http.MethodGet, wrongLink, nil)
+		w := httptest.NewRecorder()
+
+		// вызовем хендлер как обычную функцию, без запуска самого сервера
+		urlServices.GetHandler(w, r)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code, "Код ответа не совпадает с ожидаемым")
+	})
 }

@@ -1,56 +1,57 @@
 package stores
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"github.com/gofrs/uuid"
+	"github.com/rs/zerolog"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 
 	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/models"
 	"github.com/Aligator77/go_practice/internal/server"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 )
 
-type UrlService struct {
-	Db         *helpers.ConnectionPool
-	BaseUrl    string
-	logger     log.Logger
+type URLService struct {
+	DB         *helpers.ConnectionPool
+	BaseURL    string
+	logger     zerolog.Logger
 	LocalStore string
-	DisableDb string
-	EmulateDb map[string]models.Redirect
+	DisableDB  string
+	EmulateDB  map[string]models.Redirect
 }
 
-func CreateUrlService(db *helpers.ConnectionPool, logger log.Logger, str string, localStore string, disableDbStore string) (us *UrlService) {
-	us = &UrlService{
-		Db:         db,
-		BaseUrl:    str,
+func CreateURLService(db *helpers.ConnectionPool, logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLService) {
+	us = &URLService{
+		DB:         db,
+		BaseURL:    BaseURL,
 		logger:     logger,
 		LocalStore: localStore,
-		DisableDb: disableDbStore,
-		EmulateDb: make(map[string]models.Redirect, 0),
+		DisableDB:  DisableDBStore,
+		EmulateDB:  make(map[string]models.Redirect, 0),
 	}
 
 	return us
 }
 
-func (u *UrlService) Shutdown() error {
-	err := u.Db.Close()
+func (u *URLService) Shutdown() error {
+	err := u.DB.Close()
 
 	return err
 }
 
-func (u *UrlService) MakeFullUrl(link string) string {
-	if !strings.Contains(link, "http") && len(u.BaseUrl) > 0 {
-		fullRedirect, _ := url.Parse(u.BaseUrl)
+func (u *URLService) MakeFullURL(link string) string {
+	if !strings.Contains(link, "http") && len(u.BaseURL) > 0 {
+		fullRedirect, _ := url.Parse(u.BaseURL)
 		fullRedirect.Path = link
 		return fullRedirect.String()
 	} else {
@@ -58,35 +59,56 @@ func (u *UrlService) MakeFullUrl(link string) string {
 	}
 }
 
-func (u *UrlService) StoreToFile(link string) error {
+func (u *URLService) StoreToFile(link string) error {
 	if len(u.LocalStore) > 0 {
 		f, err := os.OpenFile(u.LocalStore, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
-			level.Error(u.logger).Log("msg", "Cannot open localStoreFile", "err", err)
+			u.logger.Error().Err(err).Msg("Cannot open localStoreFile")
 			return err
 		}
 
-		defer f.Close()
+		defer func(f *os.File) {
+			err := f.Close()
+			if err != nil {
+				u.logger.Error().Err(err).Msg("Cannot close localStoreFile")
+			}
+		}(f)
 
 		if _, err = f.WriteString(link); err != nil {
-			level.Error(u.logger).Log("msg", "Cannot write to localStoreFile", "err", err)
+			u.logger.Error().Err(err).Msg("Cannot write to localStoreFile")
 			return err
 		}
 	}
 	return nil
 }
 
-func (u *UrlService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
+func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
+
+	if slices.Contains(r.Header.Values("Content-Encoding"), "gzip") {
+		gzipReader, err := gzip.NewReader(r.Body)
+		if err != nil {
+			u.logger.Error().Err(err).Msg("failed to create gzip reader")
+		}
+		defer func(gzipReader *gzip.Reader) {
+			err := gzipReader.Close()
+			if err != nil {
+				u.logger.Error().Err(err).Msg("failed to close gzip reader")
+			}
+		}(gzipReader)
+
+		r.Body = io.NopCloser(gzipReader)
+	}
+
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
-	newRedirect := helpers.GenerateRandomUrl(10)
+	newRedirect := helpers.GenerateRandomURL(10)
 	redirect := &models.Redirect{
 		IsActive:   1,
-		Url:        string(data),
+		URL:        string(data),
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
@@ -99,156 +121,280 @@ func (u *UrlService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
 
-	_, err = w.Write([]byte(u.MakeFullUrl(newRedirect)))
+	_, err = w.Write([]byte(u.MakeFullURL(newRedirect)))
 	if err != nil {
 		return
 	}
 	//_ = render.Render(w, r, NewArticleResponse(article))
 }
 
-func (u *UrlService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
+func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data := &models.UrlData{}
+	data := &models.URLData{}
 	if err := render.Bind(r, data); err != nil {
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
 
-	newRedirect := helpers.GenerateRandomUrl(10)
+	newRedirect := helpers.GenerateRandomURL(10)
 	redirect := &models.Redirect{
 		IsActive:   1,
-		Url:        data.Url,
+		URL:        data.URL,
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
 	}
-	_, err := u.NewRedirect(*redirect)
-	if err != nil {
-		return
-	}
+	if u.DisableDB == "0" {
 
+		_, err := u.NewRedirect(*redirect)
+		if err != nil {
+			return
+		}
+	}
 	//{"uuid":"1","short_url":"4rSPg8ap","original_url":"http://yandex.ru"}
-	newUuid, _ := uuid.NewV7()
-	redirect.ID = newUuid.String()
+	newUUID, _ := uuid.NewV7()
+	redirect.ID = newUUID.String()
 	dataFile, _ := json.Marshal(redirect)
 	_ = u.StoreToFile(string(dataFile))
 
-	render.JSON(w, r, u.MakeFullUrl(newRedirect))
+	res := models.URLDataResponse{Result: u.MakeFullURL(newRedirect)}
 
-	//_ = render.Render(w, r, NewArticleResponse(article))
+	render.Status(r, http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
+	render.JSON(w, r, res)
+	u.EmulateDB[redirect.Redirect] = *redirect
 }
 
-func (u *UrlService) GetRedirect(id string) (redirect models.Redirect, err error) {
-	if u.DisableDb == "0" {
+func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	data := &models.URLBatches{}
+	if err := render.Bind(r, data); err != nil {
+		_ = render.Render(w, r, server.ErrInvalidRequest(err))
+		return
+	}
+	var redirects []*models.Redirect
+	var jsonResults []models.URLBatchResponse
+
+	for _, d := range data.URLBatchData {
+		var resData models.URLBatchResponse
+		newRedirect := helpers.GenerateRandomURL(10)
+		redirect := &models.Redirect{
+			ID:         d.CorrelationId,
+			IsActive:   1,
+			URL:        d.OriginalUrl,
+			Redirect:   newRedirect,
+			DateCreate: time.Now().String(),
+			DateUpdate: time.Now().String(),
+		}
+		resData.CorrelationId = d.CorrelationId
+		resData.ShortUrl = newRedirect
+
+		dataFile, _ := json.Marshal(redirect)
+		_ = u.StoreToFile(string(dataFile))
+		u.EmulateDB[redirect.Redirect] = *redirect
+		redirects = append(redirects, redirect)
+		jsonResults = append(jsonResults, resData)
+	}
+
+	if u.DisableDB == "0" {
+		_, err := u.NewRedirectsBatch(redirects)
+		if err != nil {
+			return
+		}
+	}
+
+	resData, _ := json.Marshal(jsonResults)
+	render.Status(r, http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
+	render.JSON(w, r, resData)
+}
+
+func (u *URLService) GetRedirect(id string) (redirect models.Redirect, err error) {
+	if u.DisableDB == "0" {
 		sqlRequest, ctx, cancel := Get(GetRedirect)
 		defer cancel()
 
-		conn, err := u.Db.Conn(ctx)
+		conn, err := u.DB.Conn(ctx)
 		if err != nil {
-			level.Error(u.logger).Log("msg", "GetRedirect get connection failure", "err", err)
+			u.logger.Error().Err(err).Msg("GetRedirect get connection failure")
 			return redirect, err
 		}
 		defer conn.Close()
 
 		row, err := conn.QueryContext(ctx, sqlRequest, id)
 		if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "GetRedirect exec failure",
-				"err", err,
-				"data", id,
-			)
-
+			u.logger.Error().Err(err).Str("data", id).Msg("GetRedirect exec failure")
 			return redirect, err
 		}
 
 		for row.Next() {
 
 			if err := row.Scan(
-				&redirect.Url,
+				&redirect.URL,
 				&redirect.Redirect,
 				&redirect.DateCreate,
 				&redirect.DateUpdate,
 			); err != nil {
-				level.Warn(u.logger).Log("scan failure", "err", err)
+				u.logger.Error().Err(err).Msg("scan failure")
 				continue
 			}
 		}
 
 	} else {
-		redirect = u.EmulateDb[id]
+		redirect = u.EmulateDB[id]
 	}
 
 	return redirect, nil
 }
 
-func (u *UrlService) NewRedirect(redirect models.Redirect) (id int64, err error) {
-
-	if u.DisableDb == "0" {
-		sqlRequest, ctx, cancel := Get(InsertRedirects)
+func (u *URLService) GetRedirectByUrl(url string) (redirect models.Redirect, err error) {
+	if u.DisableDB == "0" {
+		sqlRequest, ctx, cancel := Get(GetRedirectByUrl)
 		defer cancel()
 
-		conn, err := u.Db.Conn(ctx)
+		conn, err := u.DB.Conn(ctx)
 		if err != nil {
-			level.Error(u.logger).Log("msg", "NewRedirect get connection failure", "err", err)
-			return id, err
+			u.logger.Error().Err(err).Msg("GetRedirect get connection failure")
+			return redirect, err
 		}
 		defer conn.Close()
 
-		res, err := conn.ExecContext(ctx, sqlRequest, redirect.IsActive, redirect.Url, redirect.Redirect)
+		row, err := conn.QueryContext(ctx, sqlRequest, url)
 		if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "NewRedirect exec failure",
-				"err", err,
-				"data", id,
-			)
-
-			return id, err
+			u.logger.Error().Err(err).Str("data", url).Msg("GetRedirect exec failure")
+			return redirect, err
 		}
 
-		if affected, err := res.RowsAffected(); affected > 0 {
-			level.Warn(u.logger).Log("msg", "NewRedirect exec has affected rows", "affected", affected)
-		} else if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "NewRedirect exec failure",
-				"err", err,
-				"data", id,
-			)
+		for row.Next() {
+
+			if err := row.Scan(
+				&redirect.ID,
+				&redirect.URL,
+				&redirect.Redirect,
+				&redirect.DateCreate,
+				&redirect.DateUpdate,
+			); err != nil {
+				u.logger.Error().Err(err).Msg("scan failure")
+				continue
+			}
 		}
 
 	} else {
-		u.EmulateDb[redirect.Redirect] = redirect
+		redirect = u.EmulateDB[url]
+	}
+
+	return redirect, nil
+}
+
+func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect, err error) {
+	newUUID, _ := uuid.NewV7()
+	redirect.ID = newUUID.String()
+
+	if u.DisableDB == "0" {
+		existRedirect, _ := u.GetRedirectByUrl(redirect.URL)
+		if len(existRedirect.URL) > 0 {
+			return redirect, err
+		}
+		sqlRequest, ctx, cancel := Get(InsertRedirect)
+		defer cancel()
+
+		conn, err := u.DB.Conn(ctx)
+		if err != nil {
+			u.logger.Error().Err(err).Msg("NewRedirect get connection failure")
+			return redirect, err
+		}
+		defer conn.Close()
+
+		res, err := conn.ExecContext(ctx, sqlRequest, redirect.ID, redirect.IsActive, redirect.URL, redirect.Redirect)
+		if err != nil {
+			u.logger.Error().Err(err).Str("data", redirect.String()).Msg("NewRedirect get connection failure")
+			return redirect, err
+		}
+
+		if affected, err := res.RowsAffected(); affected > 0 {
+			u.logger.Warn().Str("affected", strconv.FormatInt(affected, 10)).Msg("NewRedirect exec has affected rows")
+		} else if err != nil {
+			u.logger.Error().Err(err).Str("data", redirect.String()).Msg("NewRedirect get connection failure")
+		}
+
+	} else {
+		if existRedirect, ok := u.EmulateDB[redirect.URL]; ok {
+			return existRedirect, nil
+		}
+		u.EmulateDB[redirect.Redirect] = redirect
+	}
+
+	dataFile, _ := json.Marshal(redirect)
+	_ = u.StoreToFile(string(dataFile))
+
+	return redirect, nil
+}
+
+func (u *URLService) NewRedirectsBatch(redirects []*models.Redirect) (id int64, err error) {
+	if u.DisableDB != "0" || len(redirects) == 0 {
+		return 0, nil
+	}
+
+	var queryStr strings.Builder
+	for i, r := range redirects {
+		queryStr.WriteString("(")
+		queryStr.WriteString(`"` + r.ID + `", B'` + strconv.Itoa(r.IsActive) + `', "` + r.URL + `", "` + r.Redirect + `", NOW(), NOW()`)
+		queryStr.WriteString(")")
+		if i != len(redirects)-1 {
+			queryStr.WriteString(",")
+		}
+	}
+
+	sqlRequest, ctx, cancel := Get(InsertBatchRedirects)
+	defer cancel()
+
+	conn, err := u.DB.Conn(ctx)
+	if err != nil {
+		u.logger.Error().Err(err).Msg("NewRedirect get connection failure")
+		return id, err
+	}
+	defer conn.Close()
+
+	res, err := conn.ExecContext(ctx, sqlRequest, queryStr)
+	if err != nil {
+		u.logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirect get connection failure")
+		return id, err
+	}
+
+	if affected, err := res.RowsAffected(); affected > 0 {
+		u.logger.Warn().Str("affected", strconv.FormatInt(affected, 10)).Msg("NewRedirect exec has affected rows")
+	} else if err != nil {
+		u.logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirect get connection failure")
 	}
 
 	return id, nil
 }
 
-func (u *UrlService) GetHandler(w http.ResponseWriter, r *http.Request) {
+func (u *URLService) GetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 
 	id := chi.URLParam(r, "id")
 	if len(id) > 0 {
 		redirect, err := u.GetRedirect(id)
 		if err != nil {
-			level.Error(u.logger).Log(
-				"msg", "GetRedirect error",
-				"err", err,
-				"data", id,
-			)
+			u.logger.Error().Err(err).Str("data", id).Msg("GetRedirect error")
+
 			http.Error(w, "GetRedirect error", http.StatusBadRequest)
 		}
 		if redirect.Redirect != "" {
-			fullRedirect := u.MakeFullUrl(redirect.Url)
+			fullRedirect := u.MakeFullURL(redirect.URL)
+			u.logger.Warn().Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect success")
 
-			level.Warn(u.logger).Log("msg", "GetRedirect success", "redirect.Url", redirect.Url, "redirect.Redirect", redirect.Redirect)
 			w.Header().Set("Location", fullRedirect)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 			http.Redirect(w, r, fullRedirect, http.StatusTemporaryRedirect)
 		} else {
-			level.Error(u.logger).Log("msg", "GetRedirect not found", "id", id, "redirect.Url", redirect.Url, "redirect.Redirect", redirect.Redirect)
+			u.logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect not found")
 		}
 	} else {
-		level.Error(u.logger).Log("msg", "GetRedirect not found id empty", "id", id)
+		u.logger.Error().Str("data", id).Msg("GetRedirect not found id empty")
 		http.Error(w, "GetRedirect error", http.StatusBadRequest)
 	}
 }
