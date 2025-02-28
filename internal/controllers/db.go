@@ -6,7 +6,6 @@ import (
 
 	"github.com/go-chi/render"
 	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/Aligator77/go_practice/internal/config"
@@ -34,13 +33,13 @@ func (d *DBController) CheckConnectHandler(w http.ResponseWriter, r *http.Reques
 
 }
 
-func (d *DBController) Migrate() error {
-	if d.DB.DisableDBStore == "0" {
-		driver, _ := postgres.WithInstance(d.DB.DB(), &postgres.Config{})
-		m, _ := migrate.NewWithDatabaseInstance(
-			"file:///migrations",
-			"postgres", driver)
-		err := m.Up()
+func (d *DBController) Migrate(dsn string) error {
+	if d.DB.DisableDBStore == "0" && len(dsn) > 0 {
+		m, err := migrate.New("file:///migrations", dsn)
+		if err != nil {
+			return err
+		}
+		err = m.Up()
 		if err != nil {
 			return err
 		}
