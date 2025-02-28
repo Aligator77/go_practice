@@ -14,8 +14,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/joho/godotenv"
 
@@ -77,12 +75,8 @@ func main() {
 		logger.Error().Err(err).Msg("failed to create db connection")
 	}
 	dbController := controllers.NewDBController(db, ctx)
+	dbController.Migrate()
 	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
-	driver, err := postgres.WithInstance(db.DB(), &postgres.Config{})
-	m, err := migrate.NewWithDatabaseInstance(
-		"file:///migrations",
-		"postgres", driver)
-	m.Up()
 
 	r := chi.NewRouter()
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/go-chi/render"
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"net/http"
 )
 
@@ -26,5 +28,14 @@ func (d *DBController) CheckConnectHandler(w http.ResponseWriter, r *http.Reques
 		render.Status(r, http.StatusInternalServerError)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+
+}
+
+func (d *DBController) Migrate() {
+	driver, _ := postgres.WithInstance(d.DB.DB(), &postgres.Config{})
+	m, _ := migrate.NewWithDatabaseInstance(
+		"file:///migrations",
+		"postgres", driver)
+	m.Up()
 
 }
