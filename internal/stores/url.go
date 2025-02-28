@@ -216,7 +216,7 @@ func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) 
 	resData, _ := json.Marshal(jsonResults)
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
-	render.JSON(w, r, resData)
+	render.JSON(w, r, string(resData))
 }
 
 func (u *URLService) GetRedirect(id string) (redirect models.Redirect, err error) {
