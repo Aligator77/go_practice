@@ -115,9 +115,18 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
 	}
-	_, err = u.NewRedirect(*redirect)
+	existRedirect, err := u.NewRedirect(*redirect)
 	if err != nil {
 		return
+	}
+	if len(existRedirect.URL) > 0 {
+		render.Status(r, http.StatusConflict)
+		w.WriteHeader(http.StatusConflict)
+
+		_, err = w.Write([]byte(u.MakeFullURL(existRedirect.Redirect)))
+		if err != nil {
+			return
+		}
 	}
 
 	render.Status(r, http.StatusCreated)
@@ -148,9 +157,17 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if u.DisableDB == "0" {
 
-		_, err := u.NewRedirect(*redirect)
+		existRedirect, err := u.NewRedirect(*redirect)
 		if err != nil {
 			return
+		}
+		if len(existRedirect.URL) > 0 {
+			render.Status(r, http.StatusConflict)
+			w.WriteHeader(http.StatusConflict)
+
+			res := models.URLDataResponse{Result: u.MakeFullURL(existRedirect.Redirect)}
+			render.JSON(w, r, res)
+
 		}
 	}
 	//{"uuid":"1","short_url":"4rSPg8ap","original_url":"http://yandex.ru"}
