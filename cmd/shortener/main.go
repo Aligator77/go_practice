@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/joho/godotenv"
 
 	"github.com/Aligator77/go_practice/internal/config"
@@ -75,7 +74,10 @@ func main() {
 		logger.Error().Err(err).Msg("failed to create db connection")
 	}
 	dbController := controllers.NewDBController(db, ctx)
-	dbController.Migrate()
+	err = dbController.Migrate()
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to migrate db")
+	}
 	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
 
 	r := chi.NewRouter()

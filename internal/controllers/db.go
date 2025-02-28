@@ -2,11 +2,14 @@ package controllers
 
 import (
 	"context"
-	"github.com/Aligator77/go_practice/internal/config"
+	"net/http"
+
 	"github.com/go-chi/render"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	"net/http"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	"github.com/Aligator77/go_practice/internal/config"
 )
 
 type DBController struct {
@@ -31,12 +34,16 @@ func (d *DBController) CheckConnectHandler(w http.ResponseWriter, r *http.Reques
 
 }
 
-func (d *DBController) Migrate() {
+func (d *DBController) Migrate() error {
 	if d.DB.DisableDBStore == "0" {
 		driver, _ := postgres.WithInstance(d.DB.DB(), &postgres.Config{})
 		m, _ := migrate.NewWithDatabaseInstance(
 			"file:///migrations",
 			"postgres", driver)
-		m.Up()
+		err := m.Up()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
