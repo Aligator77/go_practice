@@ -171,15 +171,21 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	data := &models.URLBatches{}
-	if err := render.Bind(r, data); err != nil {
+	data := &models.URLBatchData{}
+	links, err := io.ReadAll(r.Body)
+	if err != nil {
+		_ = render.Render(w, r, server.ErrInvalidRequest(err))
+		return
+	}
+	err = json.Unmarshal(links, &data)
+	if err != nil {
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
 	var redirects []*models.Redirect
 	var jsonResults []models.URLBatchResponse
 
-	for _, d := range data.URLBatchData {
+	for _, d := range *data {
 		var resData models.URLBatchResponse
 		newRedirect := helpers.GenerateRandomURL(10)
 		redirect := &models.Redirect{
@@ -339,18 +345,20 @@ func (u *URLService) NewRedirectsBatch(redirects []*models.Redirect) (id int64, 
 		return 0, nil
 	}
 
+	sqlRequest, ctx, cancel := Get(InsertBatchRedirects)
+	defer cancel()
+
 	var queryStr strings.Builder
+	queryStr.WriteString(sqlRequest)
+
 	for i, r := range redirects {
-		queryStr.WriteString("(")
-		queryStr.WriteString(`"` + r.ID + `", B'` + strconv.Itoa(r.IsActive) + `', "` + r.URL + `", "` + r.Redirect + `", NOW(), NOW()`)
+		queryStr.WriteString(" (")
+		queryStr.WriteString(`'` + r.ID + `', B'` + strconv.Itoa(r.IsActive) + `', '` + r.URL + `', '` + r.Redirect + `', NOW(), NOW()`)
 		queryStr.WriteString(")")
 		if i != len(redirects)-1 {
 			queryStr.WriteString(",")
 		}
 	}
-
-	sqlRequest, ctx, cancel := Get(InsertBatchRedirects)
-	defer cancel()
 
 	conn, err := u.DB.Conn(ctx)
 	if err != nil {
@@ -358,8 +366,7 @@ func (u *URLService) NewRedirectsBatch(redirects []*models.Redirect) (id int64, 
 		return id, err
 	}
 	defer conn.Close()
-
-	res, err := conn.ExecContext(ctx, sqlRequest, queryStr)
+	res, err := conn.ExecContext(ctx, queryStr.String())
 	if err != nil {
 		u.logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirect get connection failure")
 		return id, err

@@ -41,7 +41,7 @@ func init() {
 			, redirect
 			, date_create
 			, date_update)
-			values $1
+			values
 		`,
 		ctxTimeout: 2 * time.Minute}
 	queryMap[GetRedirect] = SQLQuery{
