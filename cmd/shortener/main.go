@@ -4,7 +4,6 @@ package main
 import (
 	"compress/gzip"
 	"context"
-	"github.com/rs/zerolog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
 
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/controllers"
@@ -74,7 +74,7 @@ func main() {
 		logger.Error().Err(err).Msg("failed to create db connection")
 	}
 	dbController := controllers.NewDBController(db, ctx)
-	err = dbController.Migrate(&cfg.DB.DSN)
+	err = dbController.Migrate()
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to migrate db")
 	}
