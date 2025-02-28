@@ -127,7 +127,6 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	//_ = render.Render(w, r, NewArticleResponse(article))
 }
 
 func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +191,7 @@ func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) 
 			ID:         d.CorrelationID,
 			IsActive:   1,
 			URL:        d.OriginalURL,
-			Redirect:   newRedirect,
+			Redirect:   u.MakeFullURL(newRedirect),
 			DateCreate: time.Now().String(),
 			DateUpdate: time.Now().String(),
 		}
@@ -213,10 +212,9 @@ func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	resData, _ := json.Marshal(jsonResults)
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
-	render.JSON(w, r, string(resData))
+	render.JSON(w, r, jsonResults)
 }
 
 func (u *URLService) GetRedirect(id string) (redirect models.Redirect, err error) {
