@@ -34,17 +34,17 @@ func CreateDBConn(conf *Conf) (cp *ConnectionPool, err error) {
 		}
 		dsn, err := pq.ParseURL(connString)
 		if err != nil {
-			return nil, err
+			return cp, err
 		}
 		cp.db, err = sql.Open("postgres", dsn)
 		if err != nil {
-			return nil, err
+			return cp, err
 		}
 
 		err = cp.db.Ping()
 		if err != nil {
 			cp.db.Close()
-			return nil, err
+			return cp, err
 		}
 
 		cp.db.SetMaxOpenConns(conf.DB.MaxOpenCon)

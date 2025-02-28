@@ -183,14 +183,14 @@ func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) 
 		var resData models.URLBatchResponse
 		newRedirect := helpers.GenerateRandomURL(10)
 		redirect := &models.Redirect{
-			ID:         d.CorrelationId,
+			ID:         d.CorrelationID,
 			IsActive:   1,
 			URL:        d.OriginalURL,
 			Redirect:   newRedirect,
 			DateCreate: time.Now().String(),
 			DateUpdate: time.Now().String(),
 		}
-		resData.CorrelationId = d.CorrelationId
+		resData.CorrelationID = d.CorrelationID
 		resData.ShortURL = newRedirect
 
 		dataFile, _ := json.Marshal(redirect)
