@@ -115,15 +115,21 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
 	}
-	existRedirect, err := u.NewRedirect(*redirect)
+	_, err = u.NewRedirect(*redirect)
 	if err != nil {
 		return
 	}
+
+	existRedirect, _ := u.GetRedirectByURL(redirect.URL)
 	if len(existRedirect.URL) > 0 {
 		render.Status(r, http.StatusConflict)
 		w.WriteHeader(http.StatusConflict)
 
 		_, err = w.Write([]byte(u.MakeFullURL(existRedirect.Redirect)))
+		if err != nil {
+			u.logger.Err(err).Msg("Write error CreatePostHandler")
+		}
+
 		return
 	}
 
@@ -155,10 +161,11 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if u.DisableDB == "0" {
 
-		existRedirect, err := u.NewRedirect(*redirect)
+		_, err := u.NewRedirect(*redirect)
 		if err != nil {
 			return
 		}
+		existRedirect, _ := u.GetRedirectByURL(redirect.URL)
 		if len(existRedirect.URL) > 0 {
 			render.Status(r, http.StatusConflict)
 			w.WriteHeader(http.StatusConflict)
@@ -314,10 +321,6 @@ func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect,
 	redirect.ID = newUUID.String()
 
 	if u.DisableDB == "0" {
-		existRedirect, _ := u.GetRedirectByURL(redirect.URL)
-		if len(existRedirect.URL) > 0 {
-			return redirect, err
-		}
 		sqlRequest, ctx, cancel := Get(InsertRedirect)
 		defer cancel()
 
@@ -341,9 +344,6 @@ func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect,
 		}
 
 	} else {
-		if existRedirect, ok := u.EmulateDB[redirect.URL]; ok {
-			return existRedirect, nil
-		}
 		u.EmulateDB[redirect.Redirect] = redirect
 		u.EmulateDB[redirect.URL] = redirect
 	}
