@@ -191,12 +191,12 @@ func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) 
 			ID:         d.CorrelationID,
 			IsActive:   1,
 			URL:        d.OriginalURL,
-			Redirect:   u.MakeFullURL(newRedirect),
+			Redirect:   newRedirect,
 			DateCreate: time.Now().String(),
 			DateUpdate: time.Now().String(),
 		}
 		resData.CorrelationID = d.CorrelationID
-		resData.ShortURL = newRedirect
+		resData.ShortURL = u.MakeFullURL(newRedirect)
 
 		dataFile, _ := json.Marshal(redirect)
 		_ = u.StoreToFile(string(dataFile))
@@ -383,6 +383,8 @@ func (u *URLService) GetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 
 	id := chi.URLParam(r, "id")
+	u.logger.Warn().Str("id", id).Msg("GetHandler request")
+
 	if len(id) > 0 {
 		redirect, err := u.GetRedirect(id)
 		if err != nil {
