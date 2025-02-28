@@ -330,6 +330,7 @@ func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect,
 			return existRedirect, nil
 		}
 		u.EmulateDB[redirect.Redirect] = redirect
+		u.EmulateDB[redirect.URL] = redirect
 	}
 
 	dataFile, _ := json.Marshal(redirect)
