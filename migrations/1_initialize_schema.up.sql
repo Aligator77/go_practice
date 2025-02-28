@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-create table yapr.public.redirects
+create table public.redirects
 (
     id          text,
     is_active   bit,
@@ -10,20 +10,20 @@ create table yapr.public.redirects
     date_update timestamp
 );
 
-alter table yapr.public.redirects
+alter table public.redirects
     owner to postgres;
 
 create index redirects_url_index
-    on yapr.public.redirects (url);
+    on public.redirects (url);
 
 create index redirects_redirect_index
-    on yapr.public.redirects (redirect);
+    on public.redirects (redirect);
 
 create index redirects_id_index
-    on yapr.public.redirects (id);
+    on public.redirects (id);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE IF EXISTS yapr.public.redirects;
+DROP TABLE IF EXISTS public.redirects;
 -- +goose StatementEnd
