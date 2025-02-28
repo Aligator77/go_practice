@@ -33,9 +33,9 @@ func (d *DBController) CheckConnectHandler(w http.ResponseWriter, r *http.Reques
 
 }
 
-func (d *DBController) Migrate(dsn string) error {
-	if d.DB.DisableDBStore == "0" && len(dsn) > 0 {
-		m, err := migrate.New("file:///migrations", dsn)
+func (d *DBController) Migrate(dsn *string) error {
+	if d.DB.DisableDBStore == "0" && len(*dsn) > 0 {
+		m, err := migrate.New("file:///migrations", *dsn)
 		if err != nil {
 			return err
 		}
