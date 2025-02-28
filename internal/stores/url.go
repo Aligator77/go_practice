@@ -166,7 +166,7 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 
 			res := models.URLDataResponse{Result: u.MakeFullURL(existRedirect.Redirect)}
 			render.JSON(w, r, res)
-
+			return
 		}
 		_, err := u.NewRedirect(*redirect)
 		if err != nil {
