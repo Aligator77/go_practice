@@ -27,5 +27,4 @@ func (d *DBController) CheckConnectHandler(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	return
 }
