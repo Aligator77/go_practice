@@ -1,0 +1,26 @@
+package models
+
+import (
+	"io"
+	"net/http"
+)
+
+type URLData struct {
+	URL string `json:"url"`
+}
+
+type URLDataResponse struct {
+	Result string `json:"result"`
+}
+
+func (u URLData) Bind(r *http.Request) error {
+	url, err := io.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	//lint:ignore SA4000 need for chi.Bind
+	u.URL = string(url)
+	_ = u.URL
+
+	return nil
+}

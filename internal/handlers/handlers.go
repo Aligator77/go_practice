@@ -1,26 +1,8 @@
 package handlers
 
-import "net/http"
-
-func AllInOne(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method == http.MethodPost {
-		// разрешаем только POST-запросы
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	} else if r.Method == http.MethodGet {
-		_, _ = w.Write([]byte(`
-      {
-        "response": {
-          "text": "Извините, я пока ничего не умею"
-        },
-        "version": "1.0"
-      }
-    `))
-	}
-
-}
+import (
+	"net/http"
+)
 
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
