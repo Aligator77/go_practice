@@ -74,7 +74,7 @@ func main() {
 		logger.Error().Err(err).Msg("failed to create db connection")
 	}
 	dbController := controllers.NewDBController(db, ctx)
-	err = dbController.Migrate()
+	_, err = dbController.Migrate(ctx)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to migrate db")
 	}

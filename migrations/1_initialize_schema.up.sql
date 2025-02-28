@@ -1,8 +1,5 @@
 -- +goose Up
 -- +goose StatementBegin
-create database yapr
-    with owner postgres;
-
 create table yapr.public.redirects
 (
     id          text,
@@ -29,5 +26,4 @@ create index redirects_id_index
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE IF EXISTS yapr.public.redirects;
-DROP DATABASE IF EXISTS yapr;
 -- +goose StatementEnd

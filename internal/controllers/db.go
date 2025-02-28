@@ -2,15 +2,14 @@ package controllers
 
 import (
 	"context"
-	"embed"
-	"github.com/go-chi/render"
-	"github.com/pressly/goose/v3"
 	"net/http"
 
-	"github.com/Aligator77/go_practice/internal/config"
-)
+	"github.com/go-chi/render"
+	"github.com/pressly/goose/v3"
 
-var embedMigrations embed.FS
+	"github.com/Aligator77/go_practice/internal/config"
+	"github.com/Aligator77/go_practice/migrations"
+)
 
 type DBController struct {
 	DB      *config.ConnectionPool
@@ -34,18 +33,17 @@ func (d *DBController) CheckConnectHandler(w http.ResponseWriter, r *http.Reques
 
 }
 
-func (d *DBController) Migrate() error {
+func (d *DBController) Migrate(ctx context.Context) (result []*goose.MigrationResult, err error) {
 	if d.DB.DisableDBStore == "0" {
-
-		goose.SetBaseFS(embedMigrations)
-
-		if err := goose.SetDialect("postgres"); err != nil {
-			return err
+		provider, err := goose.NewProvider("postgres", d.DB.DB(), migrations.Embed)
+		if err != nil {
+			return nil, err
 		}
 
-		if err := goose.Up(d.DB.DB(), "migrations"); err != nil {
-			return err
+		result, err = provider.Up(ctx)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return result, nil
 }
