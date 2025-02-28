@@ -19,7 +19,6 @@ import (
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/controllers"
 	"github.com/Aligator77/go_practice/internal/handlers"
-	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/stores"
 )
 
@@ -70,7 +69,7 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 
-	db, err := helpers.CreateDBConn(&cfg)
+	db, err := config.CreateDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
 	}

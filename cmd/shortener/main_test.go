@@ -20,7 +20,7 @@ import (
 
 const localhost = "http://localhost"
 
-func TestUrlGeneration(t *testing.T) {
+func TestURLGeneration(t *testing.T) {
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	cfg, err := config.New()

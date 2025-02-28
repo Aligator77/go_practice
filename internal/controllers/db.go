@@ -2,18 +2,17 @@ package controllers
 
 import (
 	"context"
+	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/go-chi/render"
 	"net/http"
-
-	"github.com/Aligator77/go_practice/internal/helpers"
 )
 
 type DBController struct {
-	DB      *helpers.ConnectionPool
+	DB      *config.ConnectionPool
 	Context context.Context
 }
 
-func NewDBController(db *helpers.ConnectionPool, ctx context.Context) *DBController {
+func NewDBController(db *config.ConnectionPool, ctx context.Context) *DBController {
 	return &DBController{
 		DB:      db,
 		Context: ctx,

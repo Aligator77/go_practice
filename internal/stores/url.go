@@ -3,8 +3,6 @@ package stores
 import (
 	"compress/gzip"
 	"encoding/json"
-	"github.com/gofrs/uuid"
-	"github.com/rs/zerolog"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,15 +12,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
+	"github.com/gofrs/uuid"
+	"github.com/rs/zerolog"
+
+	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/models"
 	"github.com/Aligator77/go_practice/internal/server"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/render"
 )
 
 type URLService struct {
-	DB         *helpers.ConnectionPool
+	DB         *config.ConnectionPool
 	BaseURL    string
 	logger     zerolog.Logger
 	LocalStore string
@@ -30,7 +32,7 @@ type URLService struct {
 	EmulateDB  map[string]models.Redirect
 }
 
-func CreateURLService(db *helpers.ConnectionPool, logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLService) {
+func CreateURLService(db *config.ConnectionPool, logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLService) {
 	us = &URLService{
 		DB:         db,
 		BaseURL:    BaseURL,
@@ -183,13 +185,13 @@ func (u *URLService) CreateBatchHandler(w http.ResponseWriter, r *http.Request) 
 		redirect := &models.Redirect{
 			ID:         d.CorrelationId,
 			IsActive:   1,
-			URL:        d.OriginalUrl,
+			URL:        d.OriginalURL,
 			Redirect:   newRedirect,
 			DateCreate: time.Now().String(),
 			DateUpdate: time.Now().String(),
 		}
 		resData.CorrelationId = d.CorrelationId
-		resData.ShortUrl = newRedirect
+		resData.ShortURL = newRedirect
 
 		dataFile, _ := json.Marshal(redirect)
 		_ = u.StoreToFile(string(dataFile))
@@ -249,9 +251,9 @@ func (u *URLService) GetRedirect(id string) (redirect models.Redirect, err error
 	return redirect, nil
 }
 
-func (u *URLService) GetRedirectByUrl(url string) (redirect models.Redirect, err error) {
+func (u *URLService) GetRedirectByURL(url string) (redirect models.Redirect, err error) {
 	if u.DisableDB == "0" {
-		sqlRequest, ctx, cancel := Get(GetRedirectByUrl)
+		sqlRequest, ctx, cancel := Get(GetRedirectByURL)
 		defer cancel()
 
 		conn, err := u.DB.Conn(ctx)
@@ -293,7 +295,7 @@ func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect,
 	redirect.ID = newUUID.String()
 
 	if u.DisableDB == "0" {
-		existRedirect, _ := u.GetRedirectByUrl(redirect.URL)
+		existRedirect, _ := u.GetRedirectByURL(redirect.URL)
 		if len(existRedirect.URL) > 0 {
 			return redirect, err
 		}

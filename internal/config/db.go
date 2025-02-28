@@ -1,4 +1,4 @@
-package helpers
+package config
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"github.com/lib/pq"
-
-	"github.com/Aligator77/go_practice/internal/config"
 )
 
 type ConnectionPool struct {
@@ -15,7 +13,7 @@ type ConnectionPool struct {
 	DisableDBStore string
 }
 
-func CreateDBConn(conf *config.Conf) (cp *ConnectionPool, err error) {
+func CreateDBConn(conf *Conf) (cp *ConnectionPool, err error) {
 	cp = &ConnectionPool{
 		DisableDBStore: conf.DisableDBStore,
 	}

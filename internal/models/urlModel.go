@@ -12,7 +12,7 @@ type URLData struct {
 
 type URLBatchData struct {
 	CorrelationId string `json:"correlation_id"`
-	OriginalUrl   string `json:"original_url"`
+	OriginalURL   string `json:"original_url"`
 }
 type URLBatches struct {
 	URLBatchData []URLBatchData
@@ -24,7 +24,7 @@ type URLDataResponse struct {
 
 type URLBatchResponse struct {
 	CorrelationId string `json:"correlation_id"`
-	ShortUrl      string `json:"short_url"`
+	ShortURL      string `json:"short_url"`
 }
 
 func (u URLData) Bind(r *http.Request) error {

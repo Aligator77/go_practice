@@ -9,7 +9,7 @@ const (
 	GetRedirect = iota
 	InsertRedirect
 	InsertBatchRedirects
-	GetRedirectByUrl
+	GetRedirectByURL
 )
 
 type SQLQuery struct {
@@ -55,7 +55,7 @@ func init() {
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
-	queryMap[GetRedirectByUrl] = SQLQuery{
+	queryMap[GetRedirectByURL] = SQLQuery{
 		SQLRequest: `
 			select id 
 			     ,	url
