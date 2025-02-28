@@ -57,7 +57,7 @@ func New() (Conf, error) {
 	if len(*dbDsn) > 0 {
 		serverConf.DB.DSN = *dbDsn
 	}
-	if len(serverConf.DB.DSN) == 0 {
+	if len(serverConf.DB.DSN) > 0 {
 		serverConf.DisableDBStore = "0"
 	}
 

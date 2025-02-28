@@ -29,7 +29,7 @@ func TestURLGeneration(t *testing.T) {
 		os.Exit(exitCodeFailure)
 	}
 
-	db, err := helpers.CreateDBConn(&cfg)
+	db, err := config.CreateDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
 		os.Exit(exitCodeFailure)
