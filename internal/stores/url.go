@@ -115,11 +115,6 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
 	}
-	_, err = u.NewRedirect(*redirect)
-	if err != nil {
-		return
-	}
-
 	existRedirect, _ := u.GetRedirectByURL(redirect.URL)
 	if len(existRedirect.URL) > 0 {
 		render.Status(r, http.StatusConflict)
@@ -130,6 +125,10 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 			u.logger.Err(err).Msg("Write error CreatePostHandler")
 		}
 
+		return
+	}
+	_, err = u.NewRedirect(*redirect)
+	if err != nil {
 		return
 	}
 
@@ -160,11 +159,6 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 		DateUpdate: time.Now().String(),
 	}
 	if u.DisableDB == "0" {
-
-		_, err := u.NewRedirect(*redirect)
-		if err != nil {
-			return
-		}
 		existRedirect, _ := u.GetRedirectByURL(redirect.URL)
 		if len(existRedirect.URL) > 0 {
 			render.Status(r, http.StatusConflict)
@@ -174,6 +168,11 @@ func (u *URLService) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 			render.JSON(w, r, res)
 
 		}
+		_, err := u.NewRedirect(*redirect)
+		if err != nil {
+			return
+		}
+
 	}
 	//{"uuid":"1","short_url":"4rSPg8ap","original_url":"http://yandex.ru"}
 	newUUID, _ := uuid.NewV7()
