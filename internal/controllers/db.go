@@ -32,10 +32,11 @@ func (d *DBController) CheckConnectHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (d *DBController) Migrate() {
-	driver, _ := postgres.WithInstance(d.DB.DB(), &postgres.Config{})
-	m, _ := migrate.NewWithDatabaseInstance(
-		"file:///migrations",
-		"postgres", driver)
-	m.Up()
-
+	if d.DB.DisableDBStore == "0" {
+		driver, _ := postgres.WithInstance(d.DB.DB(), &postgres.Config{})
+		m, _ := migrate.NewWithDatabaseInstance(
+			"file:///migrations",
+			"postgres", driver)
+		m.Up()
+	}
 }
