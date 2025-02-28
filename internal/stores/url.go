@@ -124,9 +124,7 @@ func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusConflict)
 
 		_, err = w.Write([]byte(u.MakeFullURL(existRedirect.Redirect)))
-		if err != nil {
-			return
-		}
+		return
 	}
 
 	render.Status(r, http.StatusCreated)
