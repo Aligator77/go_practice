@@ -1,13 +1,11 @@
 package stores
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -85,22 +83,6 @@ func (u *URLService) StoreToFile(link string) error {
 }
 
 func (u *URLService) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
-
-	if slices.Contains(r.Header.Values("Content-Encoding"), "gzip") {
-		gzipReader, err := gzip.NewReader(r.Body)
-		if err != nil {
-			u.logger.Error().Err(err).Msg("failed to create gzip reader")
-		}
-		defer func(gzipReader *gzip.Reader) {
-			err := gzipReader.Close()
-			if err != nil {
-				u.logger.Error().Err(err).Msg("failed to close gzip reader")
-			}
-		}(gzipReader)
-
-		r.Body = io.NopCloser(gzipReader)
-	}
-
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
