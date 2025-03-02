@@ -33,7 +33,10 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	newRedirect := helpers.GenerateRandomURL(10)
+	newUUID, _ := uuid.NewV7()
+
 	redirect := &models.Redirect{
+		ID:         newUUID.String(),
 		IsActive:   1,
 		URL:        string(data),
 		Redirect:   newRedirect,
