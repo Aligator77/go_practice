@@ -32,8 +32,8 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
-	validateUrl, err := helpers.ValidateUrl(string(data))
-	if !validateUrl || err != nil {
+	validateURL, err := helpers.ValidateURL(string(data))
+	if !validateURL || err != nil {
 		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
 		return
 	}
@@ -83,8 +83,8 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	validateUrl, err := helpers.ValidateUrl(data.URL)
-	if !validateUrl || err != nil {
+	validateURL, err := helpers.ValidateURL(data.URL)
+	if !validateURL || err != nil {
 		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
 		return
 	}
@@ -139,8 +139,8 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 		var resData models.URLBatchResponse
 		newRedirect := helpers.GenerateRandomURL(10)
 
-		validateUrl, err := helpers.ValidateUrl(d.OriginalURL)
-		if !validateUrl || err != nil {
+		validateURL, err := helpers.ValidateURL(d.OriginalURL)
+		if !validateURL || err != nil {
 			u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
 			return
 		}
@@ -210,8 +210,8 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	validateUrl, err := helpers.ValidateUrl(data.URL)
-	if !validateUrl || err != nil {
+	validateURL, err := helpers.ValidateURL(data.URL)
+	if !validateURL || err != nil {
 		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
 		return
 	}

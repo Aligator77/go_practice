@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-func ValidateUrl(url string) (result bool, err error) {
+func ValidateURL(url string) (result bool, err error) {
 	matched, err := regexp.MatchString("^http", url)
 	if err != nil {
 		return false, err
 	}
-	matched2, err := regexp.MatchString("(.ru|.com)", url)
+	matched2, err := regexp.MatchString("(.ru|.com|.net)", url)
 	if err != nil {
 		return false, err
 	}

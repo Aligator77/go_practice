@@ -23,7 +23,10 @@ func TestURLGeneration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
-			res := ValidateUrl(tc.url)
+			res, err := ValidateURL(tc.url)
+			if err != nil {
+				assert.Equal(t, tc.expectedValue, res, "Ошибка в работе регулярки")
+			}
 
 			assert.Equal(t, tc.expectedValue, res, "Ошибка в тесте")
 		})
