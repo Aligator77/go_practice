@@ -17,7 +17,7 @@ func ValidateURL(url string) (result bool, err error) {
 	}
 	result = strings.Contains(url, ":") && matched && matched2
 	if !result {
-		err = errors.New("Error Validate Url")
+		err = errors.New("error validate url")
 		return false, err
 	}
 
