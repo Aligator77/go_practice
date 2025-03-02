@@ -88,21 +88,18 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
 	}
-	if u.URLService.DisableDB == "0" {
-		existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
-		if len(existRedirect.URL) > 0 {
-			render.Status(r, http.StatusConflict)
-			w.WriteHeader(http.StatusConflict)
+	existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
+	if len(existRedirect.URL) > 0 {
+		render.Status(r, http.StatusConflict)
+		w.WriteHeader(http.StatusConflict)
 
-			res := models.URLDataResponse{Result: u.URLService.MakeFullURL(existRedirect.Redirect)}
-			render.JSON(w, r, res)
-			return
-		}
-		_, err := u.URLService.NewRedirect(*redirect)
-		if err != nil {
-			return
-		}
-
+		res := models.URLDataResponse{Result: u.URLService.MakeFullURL(existRedirect.Redirect)}
+		render.JSON(w, r, res)
+		return
+	}
+	_, err := u.URLService.NewRedirect(*redirect)
+	if err != nil {
+		return
 	}
 
 	render.Status(r, http.StatusCreated)
