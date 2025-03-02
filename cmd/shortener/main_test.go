@@ -30,13 +30,13 @@ func TestURLGeneration(t *testing.T) {
 		os.Exit(exitCodeFailure)
 	}
 
-	db, err := config.CreateDBConn(&cfg)
+	db, err := config.NewDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
+	urlServices := stores.NewURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
 	generatedURL := ""
 	urlController := controllers.NewURLController(urlServices)
 

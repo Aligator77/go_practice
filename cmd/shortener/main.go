@@ -4,14 +4,11 @@ package main
 import (
 	"compress/gzip"
 	"context"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
-	"slices"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,6 +18,7 @@ import (
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/controllers"
 	"github.com/Aligator77/go_practice/internal/handlers"
+	"github.com/Aligator77/go_practice/internal/middlewares"
 	"github.com/Aligator77/go_practice/internal/stores"
 )
 
@@ -71,7 +69,7 @@ func main() {
 		os.Exit(exitCodeFailure)
 	}
 
-	db, err := config.CreateDBConn(&cfg)
+	db, err := config.NewDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
 	}
@@ -80,7 +78,7 @@ func main() {
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to migrate db")
 	}
-	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
+	urlServices := stores.NewURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
 	urlController := controllers.NewURLController(urlServices)
 
 	r := chi.NewRouter()
@@ -91,39 +89,15 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.NoCache)
 	r.Use(middleware.Compress(gzip.DefaultCompression, "text/html", "application/json"))
-
-	// create own middleware func, to pass logger variable
-	// создали свою функцию, чтобы пробросить логгер
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if slices.Contains(r.Header.Values("Content-Encoding"), "gzip") {
-				gzipReader, err := gzip.NewReader(r.Body)
-				if err != nil {
-					logger.Error().Err(err).Msg("failed to create gzip reader")
-				}
-				defer func(gzipReader *gzip.Reader) {
-					err := gzipReader.Close()
-					if err != nil {
-						logger.Error().Err(err).Msg("failed to close gzip reader")
-					}
-				}(gzipReader)
-
-				r.Body = io.NopCloser(gzipReader)
-			}
-
-			start := time.Now()
-			// вызываем следующий обработчик
-			next.ServeHTTP(w, r)
-			duration := time.Since(start)
-			logger.Info().Strs("data", []string{"Time Duration", strconv.FormatInt(int64(duration), 10), "Method", r.Method, "URL.Path", r.URL.Path})
-		})
-	})
+	r.Use(middlewares.GzipAndLogger)
 
 	r.Route("/", func(r chi.Router) {
 		r.Get("/{id}", urlController.GetHandler)
 		r.Post("/", urlController.CreatePostHandler)
 		r.Post("/api/shorten", urlController.CreateRestHandler)
 		r.Post("/api/shorten/batch", urlController.CreateBatchHandler)
+		r.Delete("/api/user/urls", urlController.CreateFullRestHandler)
+		r.Post("/api/user/urls", urlController.CreateFullRestHandler)
 		r.Get("/ping", dbController.CheckConnectHandler)
 	})
 	r.Get("/health", handlers.HealthCheck)

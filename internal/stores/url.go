@@ -21,7 +21,7 @@ type URLService struct {
 	EmulateDB  map[string]models.Redirect
 }
 
-func CreateURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLService) {
+func NewURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLService) {
 	us = &URLService{
 		DB:         db,
 		BaseURL:    BaseURL,
@@ -234,4 +234,30 @@ func (u *URLService) NewRedirectsBatch(redirects []*models.Redirect) (id int64, 
 	}
 
 	return id, nil
+}
+
+func (u *URLService) DeleteRedirect(redirect models.Redirect) (affected bool, err error) {
+	sqlRequest, ctx, cancel := Get(DeleteRedirect)
+	defer cancel()
+
+	delete(u.EmulateDB, redirect.URL)
+	delete(u.EmulateDB, redirect.Redirect)
+
+	conn, err := u.DB.Conn(ctx)
+	if err != nil {
+		u.Logger.Error().Err(err).Msg("NewRedirect get connection failure")
+		return false, err
+	}
+	defer conn.Close()
+	res, err := conn.ExecContext(ctx, sqlRequest, redirect.URL)
+	if err != nil {
+		u.Logger.Error().Err(err).Str("data", redirect.URL).Msg("NewRedirect get connection failure")
+		return false, err
+	}
+	a, err := res.RowsAffected()
+	if a > 0 {
+		u.Logger.Warn().Str("affected", strconv.FormatInt(a, 10)).Msg("NewRedirect exec has affected rows")
+	}
+
+	return true, nil
 }

@@ -13,7 +13,7 @@ type ConnectionPool struct {
 	DisableDBStore string
 }
 
-func CreateDBConn(conf *Conf) (cp *ConnectionPool, err error) {
+func NewDBConn(conf *Conf) (cp *ConnectionPool, err error) {
 	cp = &ConnectionPool{
 		DisableDBStore: conf.DisableDBStore,
 	}

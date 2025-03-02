@@ -10,6 +10,7 @@ const (
 	InsertRedirect
 	InsertBatchRedirects
 	GetRedirectByURL
+	DeleteRedirect
 )
 
 type SQLQuery struct {
@@ -64,6 +65,14 @@ func init() {
 				 , date_update
 			from redirects
 			where is_active = B'1' and url = $1 limit 1
+		`,
+		ctxTimeout: 2 * time.Minute,
+	}
+	queryMap[DeleteRedirect] = SQLQuery{
+		SQLRequest: `
+			Delete 
+			from redirects
+			where url = $1
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}

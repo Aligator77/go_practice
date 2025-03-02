@@ -32,6 +32,11 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
+	validateUrl, err := helpers.ValidateUrl(string(data))
+	if !validateUrl || err != nil {
+		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+		return
+	}
 	newRedirect := helpers.GenerateRandomURL(10)
 	newUUID, _ := uuid.NewV7()
 
@@ -78,6 +83,11 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	validateUrl, err := helpers.ValidateUrl(data.URL)
+	if !validateUrl || err != nil {
+		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+		return
+	}
 	newUUID, _ := uuid.NewV7()
 	newRedirect := helpers.GenerateRandomURL(10)
 	redirect := &models.Redirect{
@@ -97,7 +107,7 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 		render.JSON(w, r, res)
 		return
 	}
-	_, err := u.URLService.NewRedirect(*redirect)
+	_, err = u.URLService.NewRedirect(*redirect)
 	if err != nil {
 		return
 	}
@@ -128,6 +138,12 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 	for _, d := range *data {
 		var resData models.URLBatchResponse
 		newRedirect := helpers.GenerateRandomURL(10)
+
+		validateUrl, err := helpers.ValidateUrl(d.OriginalURL)
+		if !validateUrl || err != nil {
+			u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+			return
+		}
 		redirect := &models.Redirect{
 			ID:         d.CorrelationID,
 			IsActive:   1,
@@ -182,4 +198,59 @@ func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 		u.URLService.Logger.Error().Str("data", id).Msg("GetRedirect not found id empty")
 		http.Error(w, "GetRedirect error", http.StatusBadRequest)
 	}
+}
+
+func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	method := r.Method
+
+	data := &models.URLData{}
+	if err := render.Bind(r, data); err != nil {
+		_ = render.Render(w, r, server.ErrInvalidRequest(err))
+		return
+	}
+
+	validateUrl, err := helpers.ValidateUrl(data.URL)
+	if !validateUrl || err != nil {
+		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+		return
+	}
+	newUUID, _ := uuid.NewV7()
+	newRedirect := helpers.GenerateRandomURL(10)
+	redirect := &models.Redirect{
+		ID:         newUUID.String(),
+		IsActive:   1,
+		URL:        data.URL,
+		Redirect:   newRedirect,
+		DateCreate: time.Now().String(),
+		DateUpdate: time.Now().String(),
+	}
+
+	switch method {
+	case http.MethodDelete:
+		existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
+		if len(existRedirect.URL) > 0 {
+			u.URLService.DeleteRedirect(existRedirect)
+		}
+	case http.MethodPost:
+		existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
+		if len(existRedirect.URL) > 0 {
+			render.Status(r, http.StatusConflict)
+			w.WriteHeader(http.StatusConflict)
+
+			res := models.URLDataResponse{Result: u.URLService.MakeFullURL(existRedirect.Redirect)}
+			render.JSON(w, r, res)
+			return
+		}
+		_, err := u.URLService.NewRedirect(*redirect)
+		if err != nil {
+			return
+		}
+
+	}
+
+	render.Status(r, http.StatusCreated)
+	w.WriteHeader(http.StatusCreated)
+	res := models.URLDataResponse{Result: u.URLService.MakeFullURL(newRedirect)}
+	render.JSON(w, r, res)
 }
