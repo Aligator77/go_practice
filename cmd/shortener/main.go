@@ -81,6 +81,7 @@ func main() {
 		logger.Error().Err(err).Msg("failed to migrate db")
 	}
 	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
+	urlController := controllers.NewURLController(urlServices)
 
 	r := chi.NewRouter()
 
@@ -119,10 +120,10 @@ func main() {
 	})
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/{id}", urlServices.GetHandler)
-		r.Post("/", urlServices.CreatePostHandler)
-		r.Post("/api/shorten", urlServices.CreateRestHandler)
-		r.Post("/api/shorten/batch", urlServices.CreateBatchHandler)
+		r.Get("/{id}", urlController.GetHandler)
+		r.Post("/", urlController.CreatePostHandler)
+		r.Post("/api/shorten", urlController.CreateRestHandler)
+		r.Post("/api/shorten/batch", urlController.CreateBatchHandler)
 		r.Get("/ping", dbController.CheckConnectHandler)
 	})
 	r.Get("/health", handlers.HealthCheck)
