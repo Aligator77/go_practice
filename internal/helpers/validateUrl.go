@@ -1,25 +1,14 @@
 package helpers
 
 import (
-	"errors"
-	"regexp"
-	"strings"
+	"net/url"
 )
 
-func ValidateURL(url string) (result bool, err error) {
-	matched, err := regexp.MatchString("^http", url)
+func ValidateURL(link string) (result bool, err error) {
+	_, err = url.ParseRequestURI(link)
 	if err != nil {
-		return false, err
-	}
-	matched2, err := regexp.MatchString("(.ru|.com|.net)", url)
-	if err != nil {
-		return false, err
-	}
-	result = strings.Contains(url, ":") && matched && matched2
-	if !result {
-		err = errors.New("error validate url")
 		return false, err
 	}
 
-	return result, err
+	return true, nil
 }
