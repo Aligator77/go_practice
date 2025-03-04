@@ -16,17 +16,19 @@ import (
 )
 
 type URLController struct {
-	URLService *stores.URLService
+	URLStore *stores.URLStore
 }
 
-func NewURLController(URLService *stores.URLService) *URLController {
+func NewURLController(URLService *stores.URLStore) *URLController {
 	return &URLController{
-		URLService: URLService,
+		URLStore: URLService,
 	}
 }
 
 func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	u.GetUserID(w, r)
+
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
@@ -34,7 +36,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 	}
 	validateURL, err := helpers.ValidateURL(string(data))
 	if !validateURL || err != nil {
-		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+		u.URLStore.Logger.Err(err).Msg("Write error CreatePostHandler")
 		return
 	}
 	newRedirect := helpers.GenerateRandomURL(10)
@@ -42,25 +44,25 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 
 	redirect := &models.Redirect{
 		ID:         newUUID.String(),
-		IsActive:   1,
+		IsDelete:   0,
 		URL:        string(data),
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
 	}
-	existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
+	existRedirect, _ := u.URLStore.GetRedirectByURL(redirect.URL)
 	if len(existRedirect.URL) > 0 {
 		render.Status(r, http.StatusConflict)
 		w.WriteHeader(http.StatusConflict)
 
-		_, err = w.Write([]byte(u.URLService.MakeFullURL(existRedirect.Redirect)))
+		_, err = w.Write([]byte(u.URLStore.MakeFullURL(existRedirect.Redirect)))
 		if err != nil {
-			u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+			u.URLStore.Logger.Err(err).Msg("Write error CreatePostHandler")
 		}
 
 		return
 	}
-	_, err = u.URLService.NewRedirect(*redirect)
+	_, err = u.URLStore.NewRedirect(*redirect)
 	if err != nil {
 		return
 	}
@@ -68,7 +70,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
 
-	_, err = w.Write([]byte(u.URLService.MakeFullURL(newRedirect)))
+	_, err = w.Write([]byte(u.URLStore.MakeFullURL(newRedirect)))
 	if err != nil {
 		return
 	}
@@ -76,6 +78,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 
 func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	u.GetUserID(w, r)
 
 	data := &models.URLData{}
 	if err := render.Bind(r, data); err != nil {
@@ -85,41 +88,42 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 
 	validateURL, err := helpers.ValidateURL(data.URL)
 	if !validateURL || err != nil {
-		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+		u.URLStore.Logger.Err(err).Msg("Write error CreatePostHandler")
 		return
 	}
 	newUUID, _ := uuid.NewV7()
 	newRedirect := helpers.GenerateRandomURL(10)
 	redirect := &models.Redirect{
 		ID:         newUUID.String(),
-		IsActive:   1,
+		IsDelete:   0,
 		URL:        data.URL,
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
 	}
-	existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
+	existRedirect, _ := u.URLStore.GetRedirectByURL(redirect.URL)
 	if len(existRedirect.URL) > 0 {
 		render.Status(r, http.StatusConflict)
 		w.WriteHeader(http.StatusConflict)
 
-		res := models.URLDataResponse{Result: u.URLService.MakeFullURL(existRedirect.Redirect)}
+		res := models.URLDataResponse{Result: u.URLStore.MakeFullURL(existRedirect.Redirect)}
 		render.JSON(w, r, res)
 		return
 	}
-	_, err = u.URLService.NewRedirect(*redirect)
+	_, err = u.URLStore.NewRedirect(*redirect)
 	if err != nil {
 		return
 	}
 
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
-	res := models.URLDataResponse{Result: u.URLService.MakeFullURL(newRedirect)}
+	res := models.URLDataResponse{Result: u.URLStore.MakeFullURL(newRedirect)}
 	render.JSON(w, r, res)
 }
 
 func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	u.GetUserID(w, r)
 
 	data := &models.URLBatchData{}
 	links, err := io.ReadAll(r.Body)
@@ -141,26 +145,26 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 
 		validateURL, err := helpers.ValidateURL(d.OriginalURL)
 		if !validateURL || err != nil {
-			u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
+			u.URLStore.Logger.Err(err).Msg("Write error CreatePostHandler")
 			return
 		}
 		redirect := &models.Redirect{
 			ID:         d.CorrelationID,
-			IsActive:   1,
+			IsDelete:   0,
 			URL:        d.OriginalURL,
 			Redirect:   newRedirect,
 			DateCreate: time.Now().String(),
 			DateUpdate: time.Now().String(),
 		}
 		resData.CorrelationID = d.CorrelationID
-		resData.ShortURL = u.URLService.MakeFullURL(newRedirect)
+		resData.ShortURL = u.URLStore.MakeFullURL(newRedirect)
 
 		redirects = append(redirects, redirect)
 		jsonResults = append(jsonResults, resData)
 	}
 
-	if u.URLService.DisableDB == "0" {
-		_, err := u.URLService.NewRedirectsBatch(redirects)
+	if u.URLStore.DisableDB == "0" {
+		_, err := u.URLStore.NewRedirectsBatch(redirects)
 		if err != nil {
 			return
 		}
@@ -173,29 +177,34 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 
 func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
+	u.GetUserID(w, r)
 
 	id := chi.URLParam(r, "id")
-	u.URLService.Logger.Warn().Str("id", id).Msg("GetHandler request")
+	u.URLStore.Logger.Warn().Str("id", id).Msg("GetHandler request")
 
 	if len(id) > 0 {
-		redirect, err := u.URLService.GetRedirect(id)
+		redirect, err := u.URLStore.GetRedirect(id)
 		if err != nil {
-			u.URLService.Logger.Error().Err(err).Str("data", id).Msg("GetRedirect error")
+			u.URLStore.Logger.Error().Err(err).Str("data", id).Msg("GetRedirect error")
 
 			http.Error(w, "GetRedirect error", http.StatusBadRequest)
 		}
-		if redirect.Redirect != "" {
-			fullRedirect := u.URLService.MakeFullURL(redirect.URL)
-			u.URLService.Logger.Warn().Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect success")
+		if redirect.Redirect != "" && redirect.IsDelete == 0 {
+			fullRedirect := u.URLStore.MakeFullURL(redirect.URL)
+			u.URLStore.Logger.Warn().Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect success")
 
 			w.Header().Set("Location", fullRedirect)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 			http.Redirect(w, r, fullRedirect, http.StatusTemporaryRedirect)
+		} else if redirect.IsDelete == 1 {
+			render.Status(r, http.StatusGone)
+			w.WriteHeader(http.StatusGone)
+			u.URLStore.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect is deleted")
 		} else {
-			u.URLService.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect not found")
+			u.URLStore.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect not found")
 		}
 	} else {
-		u.URLService.Logger.Error().Str("data", id).Msg("GetRedirect not found id empty")
+		u.URLStore.Logger.Error().Str("data", id).Msg("GetRedirect not found id empty")
 		http.Error(w, "GetRedirect error", http.StatusBadRequest)
 	}
 }
@@ -203,54 +212,80 @@ func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	method := r.Method
-
-	data := &models.URLData{}
-	if err := render.Bind(r, data); err != nil {
+	cookie, err := r.Cookie("user")
+	if err != nil {
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
-
-	validateURL, err := helpers.ValidateURL(data.URL)
-	if !validateURL || err != nil {
-		u.URLService.Logger.Err(err).Msg("Write error CreatePostHandler")
-		return
-	}
-	newUUID, _ := uuid.NewV7()
-	newRedirect := helpers.GenerateRandomURL(10)
-	redirect := &models.Redirect{
-		ID:         newUUID.String(),
-		IsActive:   1,
-		URL:        data.URL,
-		Redirect:   newRedirect,
-		DateCreate: time.Now().String(),
-		DateUpdate: time.Now().String(),
+	if len(cookie.Value) == 0 {
+		render.Status(r, http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
 	}
 
 	switch method {
+	case http.MethodGet:
+		existRedirects, _ := u.URLStore.GetRedirectsByUser(cookie.Value)
+
+		if len(existRedirects) == 0 {
+			render.Status(r, http.StatusNoContent)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		render.JSON(w, r, existRedirects)
 	case http.MethodDelete:
-		existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
-		if len(existRedirect.URL) > 0 {
-			u.URLService.DeleteRedirect(existRedirect)
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			_ = render.Render(w, r, server.ErrInvalidRequest(err))
+			return
+		}
+		var urls []string
+		json.Unmarshal(data, &urls)
+
+		status, err := u.URLStore.DeleteRedirect(urls)
+		if status {
+			render.Status(r, http.StatusAccepted)
+			w.WriteHeader(http.StatusAccepted)
 		}
 	case http.MethodPost:
-		existRedirect, _ := u.URLService.GetRedirectByURL(redirect.URL)
+		data := &models.URLData{}
+		if err := render.Bind(r, data); err != nil {
+			_ = render.Render(w, r, server.ErrInvalidRequest(err))
+			return
+		}
+		newUUID, _ := uuid.NewV7()
+		newRedirectURL := helpers.GenerateRandomURL(10)
+		newRedirect := &models.Redirect{
+			ID:         newUUID.String(),
+			IsDelete:   0,
+			URL:        data.URL,
+			Redirect:   newRedirectURL,
+			DateCreate: time.Now().String(),
+			DateUpdate: time.Now().String(),
+		}
+		existRedirect, _ := u.URLStore.GetRedirectByURL(newRedirect.URL)
 		if len(existRedirect.URL) > 0 {
 			render.Status(r, http.StatusConflict)
 			w.WriteHeader(http.StatusConflict)
 
-			res := models.URLDataResponse{Result: u.URLService.MakeFullURL(existRedirect.Redirect)}
+			res := models.URLDataResponse{Result: u.URLStore.MakeFullURL(existRedirect.Redirect)}
 			render.JSON(w, r, res)
 			return
 		}
-		_, err := u.URLService.NewRedirect(*redirect)
+		_, err := u.URLStore.NewRedirect(*newRedirect)
 		if err != nil {
 			return
 		}
 
 	}
 
-	render.Status(r, http.StatusCreated)
-	w.WriteHeader(http.StatusCreated)
-	res := models.URLDataResponse{Result: u.URLService.MakeFullURL(newRedirect)}
-	render.JSON(w, r, res)
+}
+
+func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) {
+	cookie, _ := r.Cookie("user")
+	if len(cookie.Value) == 0 {
+		expiration := time.Now().Add(365 * 24 * time.Hour)
+		newUserId, _ := uuid.NewV7()
+		newCookie := http.Cookie{Name: "user", Value: newUserId.String(), Expires: expiration}
+		http.SetCookie(w, &newCookie)
+	}
 }

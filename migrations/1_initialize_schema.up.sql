@@ -3,7 +3,7 @@
 create table public.redirects
 (
     id          text,
-    is_active   bit,
+    is_deleted   bit,
     url         text,
     redirect    text,
     date_create timestamp,

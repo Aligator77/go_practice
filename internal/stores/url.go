@@ -12,7 +12,7 @@ import (
 	"github.com/Aligator77/go_practice/internal/models"
 )
 
-type URLService struct {
+type URLStore struct {
 	DB         *config.ConnectionPool
 	BaseURL    string
 	Logger     zerolog.Logger
@@ -21,8 +21,8 @@ type URLService struct {
 	EmulateDB  map[string]models.Redirect
 }
 
-func NewURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLService) {
-	us = &URLService{
+func NewURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLStore) {
+	us = &URLStore{
 		DB:         db,
 		BaseURL:    BaseURL,
 		Logger:     Logger,
@@ -34,13 +34,13 @@ func NewURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL str
 	return us
 }
 
-func (u *URLService) Shutdown() error {
+func (u *URLStore) Shutdown() error {
 	err := u.DB.Close()
 
 	return err
 }
 
-func (u *URLService) MakeFullURL(link string) string {
+func (u *URLStore) MakeFullURL(link string) string {
 	if !strings.Contains(link, "http") && len(u.BaseURL) > 0 {
 		fullRedirect, _ := url.Parse(u.BaseURL)
 		fullRedirect.Path = link
@@ -50,7 +50,7 @@ func (u *URLService) MakeFullURL(link string) string {
 	}
 }
 
-func (u *URLService) StoreToFile(link string) error {
+func (u *URLStore) StoreToFile(link string) error {
 	if len(u.LocalStore) > 0 {
 		f, err := os.OpenFile(u.LocalStore, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
@@ -73,7 +73,7 @@ func (u *URLService) StoreToFile(link string) error {
 	return nil
 }
 
-func (u *URLService) GetRedirect(id string) (redirect models.Redirect, err error) {
+func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) {
 	if u.DisableDB == "0" {
 		sqlRequest, ctx, cancel := Get(GetRedirect)
 		defer cancel()
@@ -98,6 +98,7 @@ func (u *URLService) GetRedirect(id string) (redirect models.Redirect, err error
 				&redirect.Redirect,
 				&redirect.DateCreate,
 				&redirect.DateUpdate,
+				&redirect.IsDelete,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")
 				continue
@@ -111,7 +112,7 @@ func (u *URLService) GetRedirect(id string) (redirect models.Redirect, err error
 	return redirect, nil
 }
 
-func (u *URLService) GetRedirectByURL(url string) (redirect models.Redirect, err error) {
+func (u *URLStore) GetRedirectByURL(url string) (redirect models.Redirect, err error) {
 	if u.DisableDB == "0" {
 		sqlRequest, ctx, cancel := Get(GetRedirectByURL)
 		defer cancel()
@@ -137,6 +138,7 @@ func (u *URLService) GetRedirectByURL(url string) (redirect models.Redirect, err
 				&redirect.Redirect,
 				&redirect.DateCreate,
 				&redirect.DateUpdate,
+				&redirect.IsDelete,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")
 				continue
@@ -150,7 +152,7 @@ func (u *URLService) GetRedirectByURL(url string) (redirect models.Redirect, err
 	return redirect, nil
 }
 
-func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect, err error) {
+func (u *URLStore) NewRedirect(redirect models.Redirect) (res models.Redirect, err error) {
 
 	if u.DisableDB == "0" {
 		sqlRequest, ctx, cancel := Get(InsertRedirect)
@@ -163,7 +165,7 @@ func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect,
 		}
 		defer conn.Close()
 
-		res, err := conn.ExecContext(ctx, sqlRequest, redirect.ID, redirect.IsActive, redirect.URL, redirect.Redirect)
+		res, err := conn.ExecContext(ctx, sqlRequest, redirect.ID, redirect.IsDelete, redirect.URL, redirect.Redirect, redirect.User)
 		if err != nil {
 			u.Logger.Error().Err(err).Str("data", redirect.String()).Msg("NewRedirect get connection failure")
 			return redirect, err
@@ -186,7 +188,7 @@ func (u *URLService) NewRedirect(redirect models.Redirect) (res models.Redirect,
 	return redirect, nil
 }
 
-func (u *URLService) NewRedirectsBatch(redirects []*models.Redirect) (id int64, err error) {
+func (u *URLStore) NewRedirectsBatch(redirects []*models.Redirect) (id int64, err error) {
 	if len(redirects) == 0 {
 		return 0, nil
 	}
@@ -200,7 +202,7 @@ func (u *URLService) NewRedirectsBatch(redirects []*models.Redirect) (id int64, 
 
 		for i, r := range redirects {
 			queryStr.WriteString(" (")
-			queryStr.WriteString(`'` + r.ID + `', B'` + strconv.Itoa(r.IsActive) + `', '` + r.URL + `', '` + r.Redirect + `', NOW(), NOW()`)
+			queryStr.WriteString(`'` + r.ID + `', B'` + strconv.Itoa(r.IsDelete) + `', '` + r.URL + `', '` + r.Redirect + `', NOW(), NOW(), '` + r.User + `'`)
 			queryStr.WriteString(")")
 			if i != len(redirects)-1 {
 				queryStr.WriteString(",")
@@ -236,12 +238,25 @@ func (u *URLService) NewRedirectsBatch(redirects []*models.Redirect) (id int64, 
 	return id, nil
 }
 
-func (u *URLService) DeleteRedirect(redirect models.Redirect) (affected bool, err error) {
-	sqlRequest, ctx, cancel := Get(DeleteRedirect)
+func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error) {
+	sqlRequest, ctx, cancel := Get(DisableRedirects)
 	defer cancel()
 
-	delete(u.EmulateDB, redirect.URL)
-	delete(u.EmulateDB, redirect.Redirect)
+	var queryStr strings.Builder
+	queryStr.WriteString(sqlRequest)
+	queryStr.WriteString(" (")
+
+	for i, r := range redirects {
+		queryStr.WriteString(`'` + r + `'`)
+		if i != len(redirects)-1 {
+			queryStr.WriteString(",")
+		}
+		if redirect, ok := u.EmulateDB[r]; ok {
+			redirect.IsDelete = 1
+			u.EmulateDB[r] = redirect
+		}
+	}
+	queryStr.WriteString(")")
 
 	conn, err := u.DB.Conn(ctx)
 	if err != nil {
@@ -249,9 +264,9 @@ func (u *URLService) DeleteRedirect(redirect models.Redirect) (affected bool, er
 		return false, err
 	}
 	defer conn.Close()
-	res, err := conn.ExecContext(ctx, sqlRequest, redirect.URL)
+	res, err := conn.ExecContext(ctx, sqlRequest, queryStr.String())
 	if err != nil {
-		u.Logger.Error().Err(err).Str("data", redirect.URL).Msg("NewRedirect get connection failure")
+		u.Logger.Error().Err(err).Str("data", queryStr.String()).Msg("NewRedirect get connection failure")
 		return false, err
 	}
 	a, err := res.RowsAffected()
@@ -260,4 +275,48 @@ func (u *URLService) DeleteRedirect(redirect models.Redirect) (affected bool, er
 	}
 
 	return true, nil
+}
+
+func (u *URLStore) GetRedirectsByUser(userID string) (redirects []models.Redirect, err error) {
+	if u.DisableDB == "0" {
+
+		sqlRequest, ctx, cancel := Get(GetRedirectsByUser)
+		defer cancel()
+
+		conn, err := u.DB.Conn(ctx)
+		if err != nil {
+			u.Logger.Error().Err(err).Msg("NewRedirect get connection failure")
+			return redirects, err
+		}
+		defer conn.Close()
+		row, err := conn.QueryContext(ctx, sqlRequest, userID)
+		if err != nil {
+			u.Logger.Error().Err(err).Str("userID", userID).Msg("GetRedirect exec failure")
+			return redirects, err
+		}
+
+		for row.Next() {
+			var redirect models.Redirect
+			if err := row.Scan(
+				&redirect.ID,
+				&redirect.URL,
+				&redirect.Redirect,
+				&redirect.DateCreate,
+				&redirect.DateUpdate,
+				&redirect.IsDelete,
+			); err != nil {
+				u.Logger.Error().Err(err).Msg("scan failure")
+				continue
+			}
+			redirects = append(redirects, redirect)
+		}
+	} else {
+		for _, r := range u.EmulateDB {
+			if r.User == userID {
+				redirects = append(redirects, r)
+			}
+		}
+	}
+
+	return redirects, nil
 }

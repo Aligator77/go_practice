@@ -4,11 +4,12 @@ import "encoding/json"
 
 type Redirect struct {
 	ID         string `json:"uuid"`
-	IsActive   int    `json:"is_active"`
+	IsDelete   int    `json:"is_deleted"`
 	URL        string `json:"url"`
 	Redirect   string `json:"redirect"`
 	DateCreate string `json:"dateCreate"`
 	DateUpdate string `json:"dateUpdate"`
+	User       string `json:"user"`
 }
 
 func (r Redirect) String() string {

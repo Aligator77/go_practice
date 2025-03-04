@@ -96,6 +96,7 @@ func main() {
 		r.Post("/", urlController.CreatePostHandler)
 		r.Post("/api/shorten", urlController.CreateRestHandler)
 		r.Post("/api/shorten/batch", urlController.CreateBatchHandler)
+		r.Get("/api/user/urls", urlController.CreateFullRestHandler)
 		r.Delete("/api/user/urls", urlController.CreateFullRestHandler)
 		r.Post("/api/user/urls", urlController.CreateFullRestHandler)
 		r.Get("/ping", dbController.CheckConnectHandler)

@@ -10,7 +10,8 @@ const (
 	InsertRedirect
 	InsertBatchRedirects
 	GetRedirectByURL
-	DeleteRedirect
+	DisableRedirects
+	GetRedirectsByUser
 )
 
 type SQLQuery struct {
@@ -25,19 +26,20 @@ func init() {
 		SQLRequest: `
 			insert into redirects
 			(id
-			, is_active
+			, is_deleted
 			, url
 			, redirect
 			, date_create
-			, date_update)
-			values ($1, $2, $3, $4, NOW(), NOW())
+			, date_update
+			, user)
+			values ($1, $2, $3, $4, NOW(), NOW(), $5)
 		`,
 		ctxTimeout: 2 * time.Minute}
 	queryMap[InsertBatchRedirects] = SQLQuery{
 		SQLRequest: `
 			insert into redirects
 			(id
-			, is_active
+			, is_deleted
 			, url
 			, redirect
 			, date_create
@@ -51,8 +53,9 @@ func init() {
 			     , redirect
 			     , date_create
 				 , date_update
+				 , is_deleted
 			from redirects
-			where is_active = B'1' and redirect = $1 limit 1
+			where redirect = $1 limit 1
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
@@ -63,16 +66,30 @@ func init() {
 			     , redirect
 			     , date_create
 				 , date_update
+				 , is_deleted
 			from redirects
-			where is_active = B'1' and url = $1 limit 1
+			where is_deleted = B'0' and url = $1 limit 1
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
-	queryMap[DeleteRedirect] = SQLQuery{
+	queryMap[DisableRedirects] = SQLQuery{
 		SQLRequest: `
-			Delete 
+			Update redirects
+			set is_deleted = 1
+			where url in $1
+		`,
+		ctxTimeout: 2 * time.Minute,
+	}
+	queryMap[GetRedirectsByUser] = SQLQuery{
+		SQLRequest: `
+			select id 
+			     , url
+			     , redirect
+			     , date_create
+				 , date_update
+				 , is_deleted
 			from redirects
-			where url = $1
+			where user = $1 
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
