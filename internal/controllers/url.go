@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/gofrs/uuid"
 	"io"
 	"net/http"
@@ -241,7 +242,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		var urls []string
 		json.Unmarshal(data, &urls)
 
-		status, err := u.URLStore.DeleteRedirect(urls)
+		status, _ := u.URLStore.DeleteRedirect(urls)
 		if status {
 			render.Status(r, http.StatusAccepted)
 			w.WriteHeader(http.StatusAccepted)
@@ -281,11 +282,15 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) {
-	cookie, _ := r.Cookie("user")
-	if len(cookie.Value) == 0 {
+	cookie, err := r.Cookie("user")
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		u.URLStore.Logger.Err(err).Msg("error with cookie user")
+		return
+	}
+	if len(cookie.String()) == 0 {
 		expiration := time.Now().Add(365 * 24 * time.Hour)
-		newUserId, _ := uuid.NewV7()
-		newCookie := http.Cookie{Name: "user", Value: newUserId.String(), Expires: expiration}
+		newUserID, _ := uuid.NewV7()
+		newCookie := http.Cookie{Name: "user", Value: newUserID.String(), Expires: expiration}
 		http.SetCookie(w, &newCookie)
 	}
 }
