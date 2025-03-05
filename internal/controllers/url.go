@@ -238,7 +238,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 			var jsonResults []models.URLBatchResponse
 			for _, e := range existRedirects {
 				redirect := models.URLBatchResponse{
-					ShortURL:    e.Redirect,
+					ShortURL:    u.URLStore.MakeFullURL(e.Redirect),
 					OriginalURL: e.URL,
 				}
 				jsonResults = append(jsonResults, redirect)
@@ -246,7 +246,12 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 			render.JSON(w, r, jsonResults)
 		}
 		auth := r.Header.Get("Authorization")
-		if len(cookie.String()) == 0 && len(auth) == 0 {
+		if len(cookie.String()) == 0 {
+			render.Status(r, http.StatusNoContent)
+			w.WriteHeader(http.StatusNoContent)
+		}
+
+		if len(auth) == 0 {
 			render.Status(r, http.StatusUnauthorized)
 			w.WriteHeader(http.StatusUnauthorized)
 		}
