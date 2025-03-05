@@ -19,8 +19,9 @@ type URLDataResponse struct {
 }
 
 type URLBatchResponse struct {
-	CorrelationID string `json:"correlation_id"`
-	ShortURL      string `json:"short_url"`
+	CorrelationID string `json:"correlation_id,omitempty"`
+	ShortURL      string `json:"short_url,omitempty"`
+	OriginalURL   string `json:"original_url,omitempty"`
 }
 
 func (u URLData) Bind(r *http.Request) error {
