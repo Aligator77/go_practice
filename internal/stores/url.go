@@ -259,6 +259,7 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 		}
 	}
 	queryStr.WriteString(")")
+	u.Logger.Warn().Msg("DisableRedirects query " + queryStr.String())
 
 	conn, err := u.DB.Conn(ctx)
 	if err != nil {
