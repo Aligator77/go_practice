@@ -267,8 +267,8 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		json.Unmarshal(data, &urls)
 		var wg sync.WaitGroup
 
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			u.URLStore.DeleteRedirect(urls)
 			wg.Done()
 		}()
