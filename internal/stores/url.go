@@ -275,6 +275,8 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 	a, err := res.RowsAffected()
 	if a > 0 {
 		u.Logger.Warn().Str("affected", strconv.FormatInt(a, 10)).Msg("DisableRedirects exec has affected rows")
+	} else if err != nil {
+		u.Logger.Error().Err(err).Str("affected", strconv.FormatInt(a, 10)).Msg("DisableRedirects RowsAffected = 0")
 	}
 
 	return true, nil
