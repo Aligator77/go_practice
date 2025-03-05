@@ -264,11 +264,11 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		var urls []string
 		json.Unmarshal(data, &urls)
 
-		status, _ := u.URLStore.DeleteRedirect(urls)
-		if status {
-			render.Status(r, http.StatusAccepted)
-			w.WriteHeader(http.StatusAccepted)
-		}
+		go u.URLStore.DeleteRedirect(urls)
+
+		render.Status(r, http.StatusAccepted)
+		w.WriteHeader(http.StatusAccepted)
+
 	case http.MethodPost:
 		data := &models.URLData{}
 		if err := render.Bind(r, data); err != nil {
