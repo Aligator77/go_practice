@@ -79,7 +79,7 @@ func init() {
 	queryMap[DisableRedirects] = SQLQuery{
 		SQLRequest: `
 			Update redirects
-			set is_deleted = 1
+			set is_deleted = B'1'
 			
 		`,
 		ctxTimeout: 2 * time.Minute,
