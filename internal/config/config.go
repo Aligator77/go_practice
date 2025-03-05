@@ -24,8 +24,8 @@ type Conf struct {
 		User       string `env:"DB_USER" envDefault:"yapr"`
 		Password   string `env:"DB_PASSWORD" envDefault:"yapr"`
 		Name       string `env:"DB_NAME" envDefault:"yapr"`
-		MaxOpenCon int    `env:"DB_MAX_OPEN_CON" envDefault:"10"`
-		MaxIdleCon int    `env:"DB_MAX_IDLE_CON" envDefault:"10"`
+		MaxOpenCon int    `env:"DB_MAX_OPEN_CON" envDefault:"30"`
+		MaxIdleCon int    `env:"DB_MAX_IDLE_CON" envDefault:"30"`
 		DSN        string `env:"DATABASE_DSN"`
 	}
 }
