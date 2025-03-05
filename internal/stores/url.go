@@ -246,7 +246,7 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 
 	var queryStr strings.Builder
 	queryStr.WriteString(sqlRequest)
-	queryStr.WriteString(" (")
+	queryStr.WriteString("where url in (")
 
 	for i, r := range redirects {
 		queryStr.WriteString(`'` + r + `'`)
@@ -266,7 +266,7 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 		return false, err
 	}
 	defer conn.Close()
-	res, err := conn.ExecContext(ctx, sqlRequest, queryStr.String())
+	res, err := conn.ExecContext(ctx, queryStr.String())
 	if err != nil {
 		u.Logger.Error().Err(err).Str("data", queryStr.String()).Msg("NewRedirect get connection failure")
 		return false, err

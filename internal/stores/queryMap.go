@@ -80,7 +80,7 @@ func init() {
 		SQLRequest: `
 			Update redirects
 			set is_deleted = 1
-			where url in $1
+			
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
