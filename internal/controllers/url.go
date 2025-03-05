@@ -222,6 +222,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 	if len(cookie.String()) == 0 {
 		render.Status(r, http.StatusUnauthorized)
 		w.WriteHeader(http.StatusUnauthorized)
+		return
 	}
 
 	switch method {
