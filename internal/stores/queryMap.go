@@ -31,7 +31,7 @@ func init() {
 			, redirect
 			, date_create
 			, date_update
-			, user)
+			, user_id)
 			values ($1, $2, $3, $4, NOW(), NOW(), $5)
 		`,
 		ctxTimeout: 2 * time.Minute}
@@ -44,7 +44,7 @@ func init() {
 			, redirect
 			, date_create
 			, date_update
-			, user
+			, user_id
 			)
 			values
 		`,
@@ -56,7 +56,7 @@ func init() {
 			     , date_create
 				 , date_update
 				 , is_deleted
-				 , user
+				 , user_id
 			from redirects
 			where redirect = $1 limit 1
 		`,
@@ -65,12 +65,12 @@ func init() {
 	queryMap[GetRedirectByURL] = SQLQuery{
 		SQLRequest: `
 			select id 
-			     ,	url
+			     , url
 			     , redirect
 			     , date_create
 				 , date_update
 				 , is_deleted
-				 , user
+				 , user_id
 			from redirects
 			where is_deleted = B'0' and url = $1 limit 1
 		`,
@@ -92,9 +92,9 @@ func init() {
 			     , date_create
 				 , date_update
 				 , is_deleted
-				 , user
+				 , user_id
 			from redirects
-			where user = $1 
+			where user_id = $1 
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}

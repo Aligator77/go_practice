@@ -213,20 +213,20 @@ func (u *URLStore) NewRedirectsBatch(redirects []*models.Redirect) (id int64, er
 
 		conn, err := u.DB.Conn(ctx)
 		if err != nil {
-			u.Logger.Error().Err(err).Msg("NewRedirect get connection failure")
+			u.Logger.Error().Err(err).Msg("NewRedirectsBatch get connection failure")
 			return id, err
 		}
 		defer conn.Close()
 		res, err := conn.ExecContext(ctx, queryStr.String())
 		if err != nil {
-			u.Logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirect get connection failure")
+			u.Logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirectsBatch ExecContext failure")
 			return id, err
 		}
 
 		if affected, err := res.RowsAffected(); affected > 0 {
-			u.Logger.Warn().Str("affected", strconv.FormatInt(affected, 10)).Msg("NewRedirect exec has affected rows")
+			u.Logger.Warn().Str("affected", strconv.FormatInt(affected, 10)).Msg("NewRedirectsBatch exec has affected rows")
 		} else if err != nil {
-			u.Logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirect get connection failure")
+			u.Logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirectsBatch RowsAffected = 0")
 		}
 	}
 	for _, r := range redirects {

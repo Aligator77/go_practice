@@ -7,7 +7,8 @@ create table public.redirects
     url         text,
     redirect    text,
     date_create timestamp,
-    date_update timestamp
+    date_update timestamp,
+    user_id     text
 );
 
 alter table public.redirects
