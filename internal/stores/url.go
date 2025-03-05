@@ -262,18 +262,18 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 
 	conn, err := u.DB.Conn(ctx)
 	if err != nil {
-		u.Logger.Error().Err(err).Msg("NewRedirect get connection failure")
+		u.Logger.Error().Err(err).Msg("DisableRedirects get connection failure")
 		return false, err
 	}
 	defer conn.Close()
 	res, err := conn.ExecContext(ctx, queryStr.String())
 	if err != nil {
-		u.Logger.Error().Err(err).Str("data", queryStr.String()).Msg("NewRedirect get connection failure")
+		u.Logger.Error().Err(err).Str("data", queryStr.String()).Msg("DisableRedirects get connection failure")
 		return false, err
 	}
 	a, err := res.RowsAffected()
 	if a > 0 {
-		u.Logger.Warn().Str("affected", strconv.FormatInt(a, 10)).Msg("NewRedirect exec has affected rows")
+		u.Logger.Warn().Str("affected", strconv.FormatInt(a, 10)).Msg("DisableRedirects exec has affected rows")
 	}
 
 	return true, nil

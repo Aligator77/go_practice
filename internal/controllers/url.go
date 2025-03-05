@@ -6,6 +6,8 @@ import (
 	"github.com/gofrs/uuid"
 	"io"
 	"net/http"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Aligator77/go_practice/internal/helpers"
@@ -195,7 +197,7 @@ func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if redirect.Redirect != "" && redirect.IsDelete == 0 {
 			fullRedirect := u.URLStore.MakeFullURL(redirect.URL)
-			u.URLStore.Logger.Warn().Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect success")
+			u.URLStore.Logger.Warn().Strs("data", []string{id, redirect.URL, redirect.Redirect, strconv.Itoa(redirect.IsDelete)}).Msg("GetRedirect success")
 
 			w.Header().Set("Location", fullRedirect)
 			w.WriteHeader(http.StatusTemporaryRedirect)
@@ -203,9 +205,9 @@ func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 		} else if redirect.IsDelete == 1 {
 			render.Status(r, http.StatusGone)
 			w.WriteHeader(http.StatusGone)
-			u.URLStore.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect is deleted")
+			u.URLStore.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect, strconv.Itoa(redirect.IsDelete)}).Msg("GetRedirect is deleted")
 		} else {
-			u.URLStore.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect}).Msg("GetRedirect not found")
+			u.URLStore.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect, strconv.Itoa(redirect.IsDelete)}).Msg("GetRedirect not found")
 		}
 	} else {
 		u.URLStore.Logger.Error().Str("data", id).Msg("GetRedirect not found id empty")
@@ -263,12 +265,17 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		}
 		var urls []string
 		json.Unmarshal(data, &urls)
+		var wg sync.WaitGroup
 
-		go u.URLStore.DeleteRedirect(urls)
+		go func() {
+			wg.Add(1)
+			u.URLStore.DeleteRedirect(urls)
+			wg.Done()
+		}()
 
 		render.Status(r, http.StatusAccepted)
 		w.WriteHeader(http.StatusAccepted)
-
+		wg.Wait()
 	case http.MethodPost:
 		data := &models.URLData{}
 		if err := render.Bind(r, data); err != nil {
