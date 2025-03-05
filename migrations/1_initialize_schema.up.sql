@@ -22,6 +22,9 @@ create index redirects_redirect_index
 
 create index redirects_id_index
     on public.redirects (id);
+
+create index redirects_user_id_index
+    on public.redirects (user_id);
 -- +goose StatementEnd
 
 -- +goose Down

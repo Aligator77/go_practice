@@ -268,10 +268,10 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		var wg sync.WaitGroup
 
 		wg.Add(1)
-		go func() {
+		go func(urls []string) {
+			defer wg.Done()
 			u.URLStore.DeleteRedirect(urls)
-			wg.Done()
-		}()
+		}(urls)
 
 		render.Status(r, http.StatusAccepted)
 		w.WriteHeader(http.StatusAccepted)
