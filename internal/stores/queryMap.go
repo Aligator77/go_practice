@@ -43,7 +43,9 @@ func init() {
 			, url
 			, redirect
 			, date_create
-			, date_update)
+			, date_update
+			, user
+			)
 			values
 		`,
 		ctxTimeout: 2 * time.Minute}
@@ -54,6 +56,7 @@ func init() {
 			     , date_create
 				 , date_update
 				 , is_deleted
+				 , user
 			from redirects
 			where redirect = $1 limit 1
 		`,
@@ -67,6 +70,7 @@ func init() {
 			     , date_create
 				 , date_update
 				 , is_deleted
+				 , user
 			from redirects
 			where is_deleted = B'0' and url = $1 limit 1
 		`,
@@ -88,6 +92,7 @@ func init() {
 			     , date_create
 				 , date_update
 				 , is_deleted
+				 , user
 			from redirects
 			where user = $1 
 		`,
