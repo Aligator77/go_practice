@@ -223,8 +223,10 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 	switch method {
 	case http.MethodGet:
 		if len(cookie.String()) > 0 && len(cookie.Value) > 0 {
-			existRedirects, _ := u.URLStore.GetRedirectsByUser(cookie.Value)
-
+			existRedirects, err := u.URLStore.GetRedirectsByUser(cookie.Value)
+			if err != nil {
+				u.URLStore.Logger.Err(err).Str("cookie data", cookie.String()).Msg("error with cookie user")
+			}
 			if len(existRedirects) == 0 {
 				render.Status(r, http.StatusNoContent)
 				w.WriteHeader(http.StatusNoContent)
