@@ -219,30 +219,32 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 	u.GetUserID(w, r)
-	if len(cookie.String()) == 0 {
-		render.Status(r, http.StatusUnauthorized)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
 
 	switch method {
 	case http.MethodGet:
-		existRedirects, _ := u.URLStore.GetRedirectsByUser(cookie.Value)
+		if len(cookie.Value) > 0 {
+			existRedirects, _ := u.URLStore.GetRedirectsByUser(cookie.Value)
 
-		if len(existRedirects) == 0 {
-			render.Status(r, http.StatusNoContent)
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		var jsonResults []models.URLBatchResponse
-		for _, e := range existRedirects {
-			redirect := models.URLBatchResponse{
-				ShortURL:    e.Redirect,
-				OriginalURL: e.URL,
+			if len(existRedirects) == 0 {
+				render.Status(r, http.StatusNoContent)
+				w.WriteHeader(http.StatusNoContent)
+				return
 			}
-			jsonResults = append(jsonResults, redirect)
+			var jsonResults []models.URLBatchResponse
+			for _, e := range existRedirects {
+				redirect := models.URLBatchResponse{
+					ShortURL:    e.Redirect,
+					OriginalURL: e.URL,
+				}
+				jsonResults = append(jsonResults, redirect)
+			}
+			render.JSON(w, r, jsonResults)
 		}
-		render.JSON(w, r, jsonResults)
+		auth := r.Header.Get("Authorization")
+		if len(cookie.String()) == 0 && len(auth) == 0 {
+			render.Status(r, http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
+		}
 	case http.MethodDelete:
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -302,6 +304,7 @@ func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) {
 		newUserID, _ := uuid.NewV7()
 		newCookie := http.Cookie{Name: "user", Value: newUserID.String(), Expires: expiration}
 		http.SetCookie(w, &newCookie)
+		w.Header().Set("Authorization", newUserID.String())
 	}
 	return
 }
