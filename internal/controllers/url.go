@@ -214,7 +214,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	method := r.Method
 	cookie, err := r.Cookie("user")
-	if err != nil {
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
@@ -302,4 +302,5 @@ func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) {
 		newCookie := http.Cookie{Name: "user", Value: newUserID.String(), Expires: expiration}
 		http.SetCookie(w, &newCookie)
 	}
+	return
 }
