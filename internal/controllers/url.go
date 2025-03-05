@@ -222,7 +222,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 
 	switch method {
 	case http.MethodGet:
-		if len(cookie.Value) > 0 {
+		if len(cookie.String()) > 0 && len(cookie.Value) > 0 {
 			existRedirects, _ := u.URLStore.GetRedirectsByUser(cookie.Value)
 
 			if len(existRedirects) == 0 {
@@ -306,5 +306,4 @@ func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &newCookie)
 		w.Header().Set("Authorization", newUserID.String())
 	}
-	return
 }
