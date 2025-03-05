@@ -28,7 +28,7 @@ func NewURLController(URLService *stores.URLStore) *URLController {
 
 func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	u.GetUserID(w, r)
+	userID := u.GetUserID(w, r)
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -50,6 +50,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
+		User:       userID,
 	}
 	existRedirect, _ := u.URLStore.GetRedirectByURL(redirect.URL)
 	if len(existRedirect.URL) > 0 {
@@ -79,7 +80,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 
 func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	u.GetUserID(w, r)
+	userID := u.GetUserID(w, r)
 
 	data := &models.URLData{}
 	if err := render.Bind(r, data); err != nil {
@@ -101,6 +102,7 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
 		DateUpdate: time.Now().String(),
+		User:       userID,
 	}
 	existRedirect, _ := u.URLStore.GetRedirectByURL(redirect.URL)
 	if len(existRedirect.URL) > 0 {
@@ -124,7 +126,7 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 
 func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	u.GetUserID(w, r)
+	userID := u.GetUserID(w, r)
 
 	data := &models.URLBatchData{}
 	links, err := io.ReadAll(r.Body)
@@ -156,6 +158,7 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 			Redirect:   newRedirect,
 			DateCreate: time.Now().String(),
 			DateUpdate: time.Now().String(),
+			User:       userID,
 		}
 		resData.CorrelationID = d.CorrelationID
 		resData.ShortURL = u.URLStore.MakeFullURL(newRedirect)
@@ -178,7 +181,7 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 
 func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	u.GetUserID(w, r)
+	_ = u.GetUserID(w, r)
 
 	id := chi.URLParam(r, "id")
 	u.URLStore.Logger.Warn().Str("id", id).Msg("GetHandler request")
@@ -218,7 +221,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
 	}
-	u.GetUserID(w, r)
+	userID := u.GetUserID(w, r)
 
 	switch method {
 	case http.MethodGet:
@@ -276,6 +279,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 			Redirect:   newRedirectURL,
 			DateCreate: time.Now().String(),
 			DateUpdate: time.Now().String(),
+			User:       userID,
 		}
 		existRedirect, _ := u.URLStore.GetRedirectByURL(newRedirect.URL)
 		if len(existRedirect.URL) > 0 {
@@ -295,17 +299,21 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 
 }
 
-func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) {
+func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) (userID string) {
 	cookie, err := r.Cookie("user")
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
 		u.URLStore.Logger.Err(err).Msg("error with cookie user")
-		return
+		return userID
 	}
 	if len(cookie.String()) == 0 {
 		expiration := time.Now().Add(365 * 24 * time.Hour)
 		newUserID, _ := uuid.NewV7()
 		newCookie := http.Cookie{Name: "user", Value: newUserID.String(), Expires: expiration}
 		http.SetCookie(w, &newCookie)
+		userID = newUserID.String()
 		w.Header().Set("Authorization", newUserID.String())
+	} else {
+		userID = cookie.Value
 	}
+	return userID
 }
