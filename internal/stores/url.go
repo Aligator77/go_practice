@@ -246,7 +246,7 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 
 	var queryStr strings.Builder
 	queryStr.WriteString(sqlRequest)
-	queryStr.WriteString("where url in (")
+	queryStr.WriteString("where redirect in (")
 
 	for i, r := range redirects {
 		queryStr.WriteString(`'` + r + `'`)

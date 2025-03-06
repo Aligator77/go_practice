@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/Aligator77/go_practice/internal/helpers"
@@ -265,17 +264,10 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		}
 		var urls []string
 		json.Unmarshal(data, &urls)
-		var wg sync.WaitGroup
-
-		wg.Add(1)
-		go func(urls []string) {
-			defer wg.Done()
-			u.URLStore.DeleteRedirect(urls)
-		}(urls)
+		go u.URLStore.DeleteRedirect(urls)
 
 		render.Status(r, http.StatusAccepted)
 		w.WriteHeader(http.StatusAccepted)
-		wg.Wait()
 	case http.MethodPost:
 		data := &models.URLData{}
 		if err := render.Bind(r, data); err != nil {
