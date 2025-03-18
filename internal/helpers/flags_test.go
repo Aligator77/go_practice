@@ -21,7 +21,7 @@ func TestFlags(t *testing.T) {
 
 	}
 
-	checkFlagsHttpVariant := []struct {
+	checkFlagsHTTPVariant := []struct {
 		s string
 		b bool
 	}{
@@ -30,7 +30,7 @@ func TestFlags(t *testing.T) {
 		{"http://ya.ru:8080", true},
 		{"http://localhost", true},
 	}
-	for _, c := range checkFlagsHttpVariant {
+	for _, c := range checkFlagsHTTPVariant {
 		cfh := CheckFlagHTTP(&c.s)
 		assert.Equal(t, c.b, cfh, "CheckFlagHTTP Проверка не пройдена")
 
