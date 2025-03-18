@@ -1,3 +1,4 @@
+// Package controllers provide migrations and health handler
 package controllers
 
 import (

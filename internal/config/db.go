@@ -1,3 +1,4 @@
+// Package config this part of config package create connection pools for db and configurate them
 package config
 
 import (

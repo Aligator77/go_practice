@@ -1,3 +1,4 @@
+// Package stores contain queries and function to use them
 package stores
 
 import (

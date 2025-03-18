@@ -1,3 +1,4 @@
+// Package controllers contain server handlers and proxy requests to store
 package controllers
 
 import (

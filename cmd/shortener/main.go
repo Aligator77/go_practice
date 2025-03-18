@@ -1,10 +1,11 @@
-// пакеты исполняемых приложений должны называться main
+// Package main пакеты исполняемых приложений должны называться main
 package main
 
 import (
 	"compress/gzip"
 	"context"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -100,6 +101,13 @@ func main() {
 		r.Delete("/api/user/urls", urlController.CreateFullRestHandler)
 		r.Post("/api/user/urls", urlController.CreateFullRestHandler)
 		r.Get("/ping", dbController.CheckConnectHandler)
+
+		// Регистрация pprof-обработчиков
+		r.HandleFunc("/debug/pprof/", pprof.Index)
+		r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	})
 	r.Get("/health", handlers.HealthCheck)
 	server := &http.Server{

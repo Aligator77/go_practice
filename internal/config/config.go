@@ -1,3 +1,4 @@
+// Package config parse and create configurations for all project
 package config
 
 import (

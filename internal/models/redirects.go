@@ -1,3 +1,4 @@
+// Package models contain models for all project
 package models
 
 import "encoding/json"

@@ -1,3 +1,4 @@
+// Package middlewares contain middlewares
 package middlewares
 
 import (
