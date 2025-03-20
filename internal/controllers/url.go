@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/Aligator77/go_practice/internal/helpers"
@@ -21,13 +20,11 @@ import (
 
 type URLController struct {
 	URLStore *stores.URLStore
-	Mu       sync.RWMutex
 }
 
 func NewURLController(URLService *stores.URLStore) *URLController {
 	return &URLController{
 		URLStore: URLService,
-		Mu:       sync.RWMutex{},
 	}
 }
 
@@ -57,7 +54,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 		DateUpdate: time.Now().String(),
 		User:       userID,
 	}
-	u.Mu.RLock()
+
 	existRedirect, _ := u.URLStore.GetRedirectByURL(redirect.URL)
 	if len(existRedirect.URL) > 0 {
 		render.Status(r, http.StatusConflict)
@@ -70,13 +67,12 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 
 		return
 	}
-	u.Mu.RUnlock()
-	u.Mu.Lock()
+
 	_, err = u.URLStore.NewRedirect(*redirect)
 	if err != nil {
 		return
 	}
-	u.Mu.Unlock()
+
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
 
@@ -112,8 +108,9 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 		DateUpdate: time.Now().String(),
 		User:       userID,
 	}
-	u.Mu.RLock()
+
 	existRedirect, _ := u.URLStore.GetRedirectByURL(redirect.URL)
+
 	if len(existRedirect.URL) > 0 {
 		render.Status(r, http.StatusConflict)
 		w.WriteHeader(http.StatusConflict)
@@ -122,13 +119,12 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 		render.JSON(w, r, res)
 		return
 	}
-	u.Mu.RUnlock()
-	u.Mu.Lock()
+
 	_, err = u.URLStore.NewRedirect(*redirect)
+
 	if err != nil {
 		return
 	}
-	u.Mu.Unlock()
 
 	render.Status(r, http.StatusCreated)
 	w.WriteHeader(http.StatusCreated)
@@ -180,12 +176,12 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	if u.URLStore.DisableDB == "0" {
-		u.Mu.Lock()
+
 		_, err := u.URLStore.NewRedirectsBatch(redirects)
 		if err != nil {
 			return
 		}
-		u.Mu.Unlock()
+
 	}
 
 	render.Status(r, http.StatusCreated)
@@ -201,14 +197,13 @@ func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 	u.URLStore.Logger.Warn().Str("id", id).Msg("GetHandler request")
 
 	if len(id) > 0 {
-		u.Mu.RLock()
+
 		redirect, err := u.URLStore.GetRedirect(id)
 		if err != nil {
 			u.URLStore.Logger.Error().Err(err).Str("data", id).Msg("GetRedirect error")
 
 			http.Error(w, "GetRedirect error", http.StatusBadRequest)
 		}
-		u.Mu.RUnlock()
 
 		if redirect.Redirect != "" && redirect.IsDelete == 0 {
 			fullRedirect := u.URLStore.MakeFullURL(redirect.URL)
@@ -243,7 +238,6 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 	switch method {
 	case http.MethodGet:
 		if len(cookie.String()) > 0 && len(cookie.Value) > 0 {
-			u.Mu.RLock()
 
 			existRedirects, err := u.URLStore.GetRedirectsByUser(cookie.Value)
 			if err != nil {
@@ -262,7 +256,6 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 				}
 				jsonResults = append(jsonResults, redirect)
 			}
-			u.Mu.RUnlock()
 
 			render.JSON(w, r, jsonResults)
 		}
@@ -284,10 +277,8 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		}
 		var urls []string
 		json.Unmarshal(data, &urls)
-		u.Mu.Lock()
 
 		go u.URLStore.DeleteRedirect(urls)
-		u.Mu.Unlock()
 
 		render.Status(r, http.StatusAccepted)
 		w.WriteHeader(http.StatusAccepted)
@@ -308,9 +299,8 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 			DateUpdate: time.Now().String(),
 			User:       userID,
 		}
-		u.Mu.RLock()
+
 		existRedirect, _ := u.URLStore.GetRedirectByURL(newRedirect.URL)
-		u.Mu.RUnlock()
 
 		if len(existRedirect.URL) > 0 {
 			render.Status(r, http.StatusConflict)
@@ -321,9 +311,8 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 			return
 		}
 
-		u.Mu.Lock()
 		_, err := u.URLStore.NewRedirect(*newRedirect)
-		u.Mu.Unlock()
+
 		if err != nil {
 			return
 		}

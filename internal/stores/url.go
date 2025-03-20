@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Aligator77/go_practice/internal/config"
 	"github.com/Aligator77/go_practice/internal/models"
@@ -20,6 +21,7 @@ type URLStore struct {
 	LocalStore string
 	DisableDB  string
 	EmulateDB  map[string]models.Redirect
+	Mu         sync.RWMutex
 }
 
 func NewURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL string, localStore string, DisableDBStore string) (us *URLStore) {
@@ -30,6 +32,7 @@ func NewURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL str
 		LocalStore: localStore,
 		DisableDB:  DisableDBStore,
 		EmulateDB:  make(map[string]models.Redirect, 0),
+		Mu:         sync.RWMutex{},
 	}
 
 	return us
@@ -108,7 +111,9 @@ func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) 
 		}
 
 	} else {
+		u.Mu.RLock()
 		redirect = u.EmulateDB[id]
+		u.Mu.RUnlock()
 	}
 
 	return redirect, nil
@@ -149,7 +154,9 @@ func (u *URLStore) GetRedirectByURL(url string) (redirect models.Redirect, err e
 		}
 
 	} else {
+		u.Mu.RLock()
 		redirect = u.EmulateDB[url]
+		u.Mu.RUnlock()
 	}
 
 	return redirect, nil
@@ -181,8 +188,10 @@ func (u *URLStore) NewRedirect(redirect models.Redirect) (res models.Redirect, e
 		}
 
 	} else {
+		u.Mu.Lock()
 		u.EmulateDB[redirect.Redirect] = redirect
 		u.EmulateDB[redirect.URL] = redirect
+		u.Mu.Unlock()
 	}
 
 	dataFile, _ := json.Marshal(redirect)
@@ -230,13 +239,14 @@ func (u *URLStore) NewRedirectsBatch(redirects []*models.Redirect) (id int64, er
 			u.Logger.Error().Err(err).Str("data", strconv.FormatInt(id, 10)).Msg("NewRedirectsBatch RowsAffected = 0")
 		}
 	}
+	u.Mu.Lock()
 	for _, r := range redirects {
 		u.EmulateDB[r.Redirect] = *r
 		u.EmulateDB[r.URL] = *r
 		dataFile, _ := json.Marshal(r)
 		_ = u.StoreToFile(string(dataFile))
-
 	}
+	u.Mu.Unlock()
 
 	return id, nil
 }
@@ -248,7 +258,7 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 	var queryStr strings.Builder
 	queryStr.WriteString(sqlRequest)
 	queryStr.WriteString("where redirect in (")
-
+	u.Mu.Lock()
 	for i, r := range redirects {
 		queryStr.WriteString(`'` + r + `'`)
 		if i != len(redirects)-1 {
@@ -259,6 +269,8 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 			u.EmulateDB[r] = redirect
 		}
 	}
+	u.Mu.Unlock()
+
 	queryStr.WriteString(")")
 	u.Logger.Warn().Msg("DisableRedirects query " + queryStr.String())
 
@@ -318,11 +330,14 @@ func (u *URLStore) GetRedirectsByUser(userID string) (redirects []models.Redirec
 			redirects = append(redirects, redirect)
 		}
 	} else {
+		u.Mu.RLock()
+
 		for _, r := range u.EmulateDB {
 			if r.User == userID {
 				redirects = append(redirects, r)
 			}
 		}
+		u.Mu.RUnlock()
 	}
 
 	return redirects, nil
