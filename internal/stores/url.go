@@ -4,6 +4,7 @@ package stores
 import (
 	"encoding/json"
 	"github.com/rs/zerolog"
+	"io"
 	"net/url"
 	"os"
 	"strconv"
@@ -77,6 +78,38 @@ func (u *URLStore) StoreToFile(link string) error {
 	return nil
 }
 
+func (u *URLStore) RestoreFromFile() error {
+	if len(u.LocalStore) > 0 {
+		f, err := os.OpenFile(u.LocalStore, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			u.Logger.Error().Err(err).Msg("Cannot open localStoreFile to restore links")
+			return err
+		}
+
+		defer func(f *os.File) {
+			err := f.Close()
+			if err != nil {
+				u.Logger.Error().Err(err).Msg("Cannot close localStoreFile to restore links")
+			}
+		}(f)
+
+		b, err := io.ReadAll(f)
+		var redirects []models.Redirect
+		err = json.Unmarshal(b, &redirects)
+		if err != nil {
+			u.Logger.Error().Err(err).Msg("Cannot unmarshal localStoreFile to restore links")
+		}
+		u.Mu.Lock()
+		for _, redirect := range redirects {
+			u.EmulateDB[redirect.Redirect] = redirect
+			u.EmulateDB[redirect.URL] = redirect
+		}
+		u.Mu.Unlock()
+
+	}
+	return nil
+}
+
 func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) {
 	if u.DisableDB == "0" {
 		sqlRequest, ctx, cancel := Get(GetRedirect)
@@ -108,6 +141,9 @@ func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) 
 				u.Logger.Error().Err(err).Msg("scan failure")
 				continue
 			}
+		}
+		if err = row.Err(); err != nil {
+			return redirect, err
 		}
 
 	} else {
@@ -151,6 +187,9 @@ func (u *URLStore) GetRedirectByURL(url string) (redirect models.Redirect, err e
 				u.Logger.Error().Err(err).Msg("scan failure")
 				continue
 			}
+		}
+		if err = row.Err(); err != nil {
+			return redirect, err
 		}
 
 	} else {
@@ -328,6 +367,9 @@ func (u *URLStore) GetRedirectsByUser(userID string) (redirects []models.Redirec
 				continue
 			}
 			redirects = append(redirects, redirect)
+		}
+		if err = row.Err(); err != nil {
+			return redirects, err
 		}
 	} else {
 		u.Mu.RLock()

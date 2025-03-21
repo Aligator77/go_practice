@@ -17,7 +17,7 @@ type DBController struct {
 	Context context.Context
 }
 
-func NewDBController(db *config.ConnectionPool, ctx context.Context) *DBController {
+func NewDBController(ctx context.Context, db *config.ConnectionPool) *DBController {
 	return &DBController{
 		DB:      db,
 		Context: ctx,
