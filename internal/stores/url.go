@@ -94,6 +94,9 @@ func (u *URLStore) RestoreFromFile() error {
 		}(f)
 
 		b, err := io.ReadAll(f)
+		if err != nil {
+			u.Logger.Error().Err(err).Msg("Cannot read localStoreFile to restore links")
+		}
 		var redirects []models.Redirect
 		err = json.Unmarshal(b, &redirects)
 		if err != nil {
