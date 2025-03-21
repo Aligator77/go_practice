@@ -114,7 +114,6 @@ func (u *URLStore) RestoreFromFile() {
 		u.Mu.Unlock()
 
 	}
-	return
 }
 
 func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) {
