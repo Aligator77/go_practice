@@ -2,9 +2,9 @@
 package stores
 
 import (
+	"bufio"
 	"encoding/json"
 	"github.com/rs/zerolog"
-	"io"
 	"net/url"
 	"os"
 	"strconv"
@@ -35,7 +35,7 @@ func NewURLService(db *config.ConnectionPool, Logger zerolog.Logger, BaseURL str
 		EmulateDB:  make(map[string]models.Redirect, 0),
 		Mu:         sync.RWMutex{},
 	}
-
+	us.RestoreFromFile()
 	return us
 }
 
@@ -78,12 +78,12 @@ func (u *URLStore) StoreToFile(link string) error {
 	return nil
 }
 
-func (u *URLStore) RestoreFromFile() error {
+func (u *URLStore) RestoreFromFile() {
 	if len(u.LocalStore) > 0 {
-		f, err := os.OpenFile(u.LocalStore, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+		f, err := os.OpenFile(u.LocalStore, os.O_APPEND, 0600)
 		if err != nil {
 			u.Logger.Error().Err(err).Msg("Cannot open localStoreFile to restore links")
-			return err
+			return
 		}
 
 		defer func(f *os.File) {
@@ -92,15 +92,19 @@ func (u *URLStore) RestoreFromFile() error {
 				u.Logger.Error().Err(err).Msg("Cannot close localStoreFile to restore links")
 			}
 		}(f)
-
-		b, err := io.ReadAll(f)
-		if err != nil {
-			u.Logger.Error().Err(err).Msg("Cannot read localStoreFile to restore links")
-		}
 		var redirects []models.Redirect
-		err = json.Unmarshal(b, &redirects)
-		if err != nil {
-			u.Logger.Error().Err(err).Msg("Cannot unmarshal localStoreFile to restore links")
+		scan := bufio.NewScanner(f)
+		for scan.Scan() {
+			line := scan.Bytes()
+			var redirect models.Redirect
+			err = json.Unmarshal(line, &redirect)
+			if err != nil {
+				u.Logger.Error().Err(err).Msg("Cannot unmarshal localStoreFile to restore links")
+			}
+			redirects = append(redirects, redirect)
+		}
+		if err := scan.Err(); err != nil {
+			u.Logger.Error().Err(err).Msg("Cannot read localStoreFile to restore links")
 		}
 		u.Mu.Lock()
 		for _, redirect := range redirects {
@@ -110,7 +114,7 @@ func (u *URLStore) RestoreFromFile() error {
 		u.Mu.Unlock()
 
 	}
-	return nil
+	return
 }
 
 func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) {
@@ -237,7 +241,7 @@ func (u *URLStore) NewRedirect(redirect models.Redirect) (res models.Redirect, e
 	}
 
 	dataFile, _ := json.Marshal(redirect)
-	_ = u.StoreToFile(string(dataFile))
+	_ = u.StoreToFile(string(dataFile) + "\n")
 
 	return redirect, nil
 }
@@ -286,7 +290,7 @@ func (u *URLStore) NewRedirectsBatch(redirects []*models.Redirect) (id int64, er
 		u.EmulateDB[r.Redirect] = *r
 		u.EmulateDB[r.URL] = *r
 		dataFile, _ := json.Marshal(r)
-		_ = u.StoreToFile(string(dataFile))
+		_ = u.StoreToFile(string(dataFile) + "\n")
 	}
 	u.Mu.Unlock()
 
