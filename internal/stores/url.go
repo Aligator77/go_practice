@@ -145,7 +145,7 @@ func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) 
 				&redirect.User,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")
-				continue
+				return redirect, err
 			}
 		}
 		if err = row.Err(); err != nil {
@@ -191,7 +191,7 @@ func (u *URLStore) GetRedirectByURL(url string) (redirect models.Redirect, err e
 				&redirect.User,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")
-				continue
+				return redirect, err
 			}
 		}
 		if err = row.Err(); err != nil {
@@ -370,7 +370,7 @@ func (u *URLStore) GetRedirectsByUser(userID string) (redirects []models.Redirec
 				&redirect.User,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")
-				continue
+				return redirects, err
 			}
 			redirects = append(redirects, redirect)
 		}
