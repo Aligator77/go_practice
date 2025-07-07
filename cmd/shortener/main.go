@@ -1,25 +1,26 @@
-// пакеты исполняемых приложений должны называться main
+// Package main пакеты исполняемых приложений должны называться main
 package main
 
 import (
 	"compress/gzip"
 	"context"
-	"flag"
-	"github.com/rs/zerolog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
-	"time"
 
-	"github.com/Aligator77/go_practice/internal/config"
-	"github.com/Aligator77/go_practice/internal/handlers"
-	"github.com/Aligator77/go_practice/internal/helpers"
-	"github.com/Aligator77/go_practice/internal/stores"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+
+	"github.com/Aligator77/go_practice/internal/config"
+	"github.com/Aligator77/go_practice/internal/controllers"
+	"github.com/Aligator77/go_practice/internal/handlers"
+	"github.com/Aligator77/go_practice/internal/middlewares"
+	"github.com/Aligator77/go_practice/internal/stores"
 )
 
 const (
@@ -68,33 +69,18 @@ func main() {
 		logger.Error().Err(err).Msg("failed to load config")
 		os.Exit(exitCodeFailure)
 	}
-	serverAddrFlag := flag.String("a", "", "input server address")
-	baseURLFlag := flag.String("b", "", "input server address")
-	localStoreFile := flag.String("f", "", "input server address")
-	flag.Parse()
 
-	serverAddr := cfg.Server.Address
-	if len(*serverAddrFlag) > 0 && helpers.CheckFlag(serverAddrFlag) {
-		serverAddr = *serverAddrFlag
-	}
-
-	BaseURL := cfg.BaseURL
-	if len(*baseURLFlag) > 0 && helpers.CheckFlagHTTP(baseURLFlag) {
-		BaseURL = *baseURLFlag
-	}
-
-	localStore := cfg.LocalStore
-	if len(*localStoreFile) > 0 {
-		localStore = *localStoreFile
-	}
-
-	db, err := helpers.CreateDBConn(&cfg)
+	db, err := config.NewDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
-		os.Exit(exitCodeFailure)
 	}
-
-	urlServices := stores.CreateURLService(db, logger, BaseURL, localStore, cfg.DisableDBStore)
+	dbController := controllers.NewDBController(ctx, db)
+	_, err = dbController.Migrate(ctx)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to migrate db")
+	}
+	urlServices := stores.NewURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
+	urlController := controllers.NewURLController(urlServices)
 
 	r := chi.NewRouter()
 
@@ -104,27 +90,28 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.NoCache)
 	r.Use(middleware.Compress(gzip.DefaultCompression, "text/html", "application/json"))
-
-	// create own middleware func, to pass logger variable
-	// создали свою функцию, чтобы пробросить логгер
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
-			// вызываем следующий обработчик
-			next.ServeHTTP(w, r)
-			duration := time.Since(start)
-			logger.Info().Strs("data", []string{"Time Duration", strconv.FormatInt(int64(duration), 10), "Method", r.Method, "URL.Path", r.URL.Path})
-		})
-	})
+	r.Use(middlewares.GzipAndLogger)
 
 	r.Route("/", func(r chi.Router) {
-		r.Get("/{id}", urlServices.GetHandler)
-		r.Post("/", urlServices.CreatePostHandler)
-		r.Post("/api/shorten", urlServices.CreateRestHandler)
+		r.Get("/{id}", urlController.GetHandler)
+		r.Post("/", urlController.CreatePostHandler)
+		r.Post("/api/shorten", urlController.CreateRestHandler)
+		r.Post("/api/shorten/batch", urlController.CreateBatchHandler)
+		r.Get("/api/user/urls", urlController.CreateFullRestHandler)
+		r.Delete("/api/user/urls", urlController.CreateFullRestHandler)
+		r.Post("/api/user/urls", urlController.CreateFullRestHandler)
+		r.Get("/ping", dbController.CheckConnectHandler)
+
+		// Регистрация pprof-обработчиков
+		r.HandleFunc("/debug/pprof/", pprof.Index)
+		r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		r.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		r.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	})
 	r.Get("/health", handlers.HealthCheck)
 	server := &http.Server{
-		Addr:    serverAddr,
+		Addr:    cfg.Server.Address,
 		Handler: r,
 	}
 	go func() {

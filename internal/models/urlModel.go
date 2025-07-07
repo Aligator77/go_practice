@@ -1,3 +1,4 @@
+// Package models contain models for all project
 package models
 
 import (
@@ -9,8 +10,19 @@ type URLData struct {
 	URL string `json:"url"`
 }
 
+type URLBatchData []struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
 type URLDataResponse struct {
 	Result string `json:"result"`
+}
+
+type URLBatchResponse struct {
+	CorrelationID string `json:"correlation_id,omitempty"`
+	ShortURL      string `json:"short_url,omitempty"`
+	OriginalURL   string `json:"original_url,omitempty"`
 }
 
 func (u URLData) Bind(r *http.Request) error {

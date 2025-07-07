@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/rs/zerolog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,16 +10,18 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Aligator77/go_practice/internal/config"
+	"github.com/Aligator77/go_practice/internal/controllers"
 	"github.com/Aligator77/go_practice/internal/helpers"
 	"github.com/Aligator77/go_practice/internal/stores"
 )
 
 const localhost = "http://localhost"
 
-func TestUrlGeneration(t *testing.T) {
+func TestURLGeneration(t *testing.T) {
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	cfg, err := config.New()
@@ -29,14 +30,15 @@ func TestUrlGeneration(t *testing.T) {
 		os.Exit(exitCodeFailure)
 	}
 
-	db, err := helpers.CreateDBConn(&cfg)
+	db, err := config.NewDBConn(&cfg)
 	if err != nil {
 		logger.Error().Err(err).Msg("failed to create db connection")
 		os.Exit(exitCodeFailure)
 	}
 
-	urlServices := stores.CreateURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
+	urlServices := stores.NewURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
 	generatedURL := ""
+	urlController := controllers.NewURLController(urlServices)
 
 	link := helpers.GenerateRandomURL(10)
 	path := helpers.GenerateRandomURL(15)
@@ -50,7 +52,7 @@ func TestUrlGeneration(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// вызовем хендлер как обычную функцию, без запуска самого сервера
-		urlServices.CreatePostHandler(w, r)
+		urlController.CreatePostHandler(w, r)
 
 		assert.Equal(t, http.StatusCreated, w.Code, "Код ответа не совпадает с ожидаемым")
 		generatedURL = w.Body.String()
@@ -69,7 +71,7 @@ func TestUrlGeneration(t *testing.T) {
 		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 
 		// вызовем хендлер как обычную функцию, без запуска самого сервера
-		urlServices.GetHandler(w, r)
+		urlController.GetHandler(w, r)
 
 		assert.Equal(t, http.StatusTemporaryRedirect, w.Code, "Код ответа не совпадает с ожидаемым")
 
@@ -83,7 +85,7 @@ func TestUrlGeneration(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// вызовем хендлер как обычную функцию, без запуска самого сервера
-		urlServices.GetHandler(w, r)
+		urlController.GetHandler(w, r)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code, "Код ответа не совпадает с ожидаемым")
 	})

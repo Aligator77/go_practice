@@ -1,4 +1,5 @@
-package helpers
+// Package config this part of config package create connection pools for db and configurate them
+package config
 
 import (
 	"context"
@@ -6,8 +7,6 @@ import (
 	"fmt"
 
 	"github.com/lib/pq"
-
-	"github.com/Aligator77/go_practice/internal/config"
 )
 
 type ConnectionPool struct {
@@ -15,19 +14,25 @@ type ConnectionPool struct {
 	DisableDBStore string
 }
 
-func CreateDBConn(conf *config.Conf) (cp *ConnectionPool, err error) {
+func NewDBConn(conf *Conf) (cp *ConnectionPool, err error) {
 	cp = &ConnectionPool{
 		DisableDBStore: conf.DisableDBStore,
 	}
 	if conf.DisableDBStore == "0" {
-		//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
-		connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-			conf.DB.User,
-			conf.DB.Password,
-			conf.DB.Host,
-			conf.DB.Port,
-			conf.DB.Name,
-		)
+		connString := ""
+		if conf.DB.User != "" {
+			//postgres://bob:secret@1.2.3.4:5432/mydb?sslmode=verify-full
+			connString = fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
+				conf.DB.User,
+				conf.DB.Password,
+				conf.DB.Host,
+				conf.DB.Port,
+				conf.DB.Name,
+			)
+		}
+		if conf.DB.DSN != "" {
+			connString = conf.DB.DSN
+		}
 		dsn, err := pq.ParseURL(connString)
 		if err != nil {
 			return nil, err
@@ -78,4 +83,14 @@ func (cp *ConnectionPool) Close() error {
 		return cp.db.Close()
 	}
 	return nil
+}
+
+func (cp *ConnectionPool) CheckConnection(ctx context.Context) bool {
+	if cp.DisableDBStore == "0" {
+		err := cp.db.PingContext(ctx)
+		if err != nil {
+			return false
+		}
+	}
+	return true
 }

@@ -1,0 +1,23 @@
+### GET request with a header
+GET http://localhost:8080/w0tJdifBwX
+
+### POST request
+POST http://localhost:8080
+Content-Type: plain-text
+http://ya.ru/asdaasfa
+
+### POST request with batch
+POST http://localhost:8080/api/shorten/batch
+Content-Type: application/json
+[{"correlation_id":"41b9e214-691e-43a2-a82f-fb6936394a31","original_url":"http://nlaxc.yandex"},{"correlation_id":"7a0c5416-6fa0-4638-8728-90fda9ce96a5","original_url":"http://dqajv1ft.ru"}]
+
+### POST request with auth block
+POST http://localhost:8080/api/user/urls
+Content-Type: application/json
+["http://nlaxc.yandex"]
+
+### DELETE request
+DELETE http://localhost:8080/api/user/urls
+Content-Type: application/json
+["UI4gObgkc3","xLGm5zh1cy"]
+

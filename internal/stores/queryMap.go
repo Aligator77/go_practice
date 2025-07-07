@@ -1,3 +1,4 @@
+// Package stores contain queries and function to use them
 package stores
 
 import (
@@ -7,7 +8,11 @@ import (
 
 const (
 	GetRedirect = iota
-	InsertRedirects
+	InsertRedirect
+	InsertBatchRedirects
+	GetRedirectByURL
+	DisableRedirects
+	GetRedirectsByUser
 )
 
 type SQLQuery struct {
@@ -18,15 +23,31 @@ type SQLQuery struct {
 var queryMap = make(map[int]SQLQuery)
 
 func init() {
-	queryMap[InsertRedirects] = SQLQuery{
+	queryMap[InsertRedirect] = SQLQuery{
 		SQLRequest: `
 			insert into redirects
-			(is_active
+			(id
+			, is_deleted
 			, url
 			, redirect
 			, date_create
-			, date_update)
-			values ($1, $2, $3, NOW(), NOW())
+			, date_update
+			, user_id)
+			values ($1, $2, $3, $4, NOW(), NOW(), $5)
+		`,
+		ctxTimeout: 2 * time.Minute}
+	queryMap[InsertBatchRedirects] = SQLQuery{
+		SQLRequest: `
+			insert into redirects
+			(id
+			, is_deleted
+			, url
+			, redirect
+			, date_create
+			, date_update
+			, user_id
+			)
+			values
 		`,
 		ctxTimeout: 2 * time.Minute}
 	queryMap[GetRedirect] = SQLQuery{
@@ -35,8 +56,46 @@ func init() {
 			     , redirect
 			     , date_create
 				 , date_update
+				 , is_deleted
+				 , user_id
 			from redirects
-			where is_active = B'1' and redirect = $1 limit 1
+			where redirect = $1 limit 1
+		`,
+		ctxTimeout: 2 * time.Minute,
+	}
+	queryMap[GetRedirectByURL] = SQLQuery{
+		SQLRequest: `
+			select id 
+			     , url
+			     , redirect
+			     , date_create
+				 , date_update
+				 , is_deleted
+				 , user_id
+			from redirects
+			where is_deleted = B'0' and url = $1 limit 1
+		`,
+		ctxTimeout: 2 * time.Minute,
+	}
+	queryMap[DisableRedirects] = SQLQuery{
+		SQLRequest: `
+			Update redirects
+			set is_deleted = B'1'
+			
+		`,
+		ctxTimeout: 2 * time.Minute,
+	}
+	queryMap[GetRedirectsByUser] = SQLQuery{
+		SQLRequest: `
+			select id 
+			     , url
+			     , redirect
+			     , date_create
+				 , date_update
+				 , is_deleted
+				 , user_id
+			from redirects
+			where user_id = $1 
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}

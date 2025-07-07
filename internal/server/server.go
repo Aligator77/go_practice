@@ -1,3 +1,4 @@
+// Package server contain all for server
 package server
 
 import (

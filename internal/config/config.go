@@ -1,7 +1,12 @@
+// Package config parse and create configurations for all project
 package config
 
 import (
+	"flag"
+
 	"github.com/caarlos0/env/v11"
+
+	"github.com/Aligator77/go_practice/internal/helpers"
 )
 
 type Conf struct {
@@ -20,8 +25,9 @@ type Conf struct {
 		User       string `env:"DB_USER" envDefault:"yapr"`
 		Password   string `env:"DB_PASSWORD" envDefault:"yapr"`
 		Name       string `env:"DB_NAME" envDefault:"yapr"`
-		MaxOpenCon int    `env:"DB_MAX_OPEN_CON" envDefault:"10"`
-		MaxIdleCon int    `env:"DB_MAX_IDLE_CON" envDefault:"10"`
+		MaxOpenCon int    `env:"DB_MAX_OPEN_CON" envDefault:"30"`
+		MaxIdleCon int    `env:"DB_MAX_IDLE_CON" envDefault:"30"`
+		DSN        string `env:"DATABASE_DSN"`
 	}
 }
 
@@ -31,5 +37,30 @@ func New() (Conf, error) {
 	if err != nil {
 		return serverConf, err
 	}
+
+	serverAddrFlag := flag.String("a", "", "input server address")
+	baseURLFlag := flag.String("b", "", "input server address")
+	localStoreFile := flag.String("f", "", "input server address")
+	dbDsn := flag.String("d", "", "input db dsn address")
+	flag.Parse()
+
+	if len(*serverAddrFlag) > 0 && helpers.CheckFlag(serverAddrFlag) {
+		serverConf.Server.Address = *serverAddrFlag
+	}
+
+	if len(*baseURLFlag) > 0 && helpers.CheckFlagHTTP(baseURLFlag) {
+		serverConf.BaseURL = *baseURLFlag
+	}
+
+	if len(*localStoreFile) > 0 {
+		serverConf.LocalStore = *localStoreFile
+	}
+	if len(*dbDsn) > 0 {
+		serverConf.DB.DSN = *dbDsn
+	}
+	if len(serverConf.DB.DSN) > 0 {
+		serverConf.DisableDBStore = "0"
+	}
+
 	return serverConf, nil
 }
