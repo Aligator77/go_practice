@@ -66,18 +66,17 @@ func main() {
 
 	cfg, err := config.New()
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to load config")
-		os.Exit(exitCodeFailure)
+		logger.Fatal().Err(err).Msg("failed to load config")
 	}
 
 	db, err := config.NewDBConn(&cfg)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to create db connection")
+		logger.Fatal().Err(err).Msg("failed to create db connection")
 	}
 	dbController := controllers.NewDBController(ctx, db)
 	_, err = dbController.Migrate(ctx)
 	if err != nil {
-		logger.Error().Err(err).Msg("failed to migrate db")
+		logger.Fatal().Err(err).Msg("failed to migrate db")
 	}
 	urlServices := stores.NewURLService(db, logger, cfg.BaseURL, cfg.LocalStore, cfg.DisableDBStore)
 	urlController := controllers.NewURLController(urlServices)
