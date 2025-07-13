@@ -23,11 +23,12 @@ type SQLQuery struct {
 var queryMap = make(map[int]SQLQuery)
 
 func init() {
+	// change is_active to is_deleted for iter15
 	queryMap[InsertRedirect] = SQLQuery{
 		SQLRequest: `
 			insert into redirects
 			(id
-			, is_deleted # change for iter15
+			, is_deleted
 			, url
 			, redirect
 			, date_create
@@ -36,11 +37,12 @@ func init() {
 			values ($1, $2, $3, $4, NOW(), NOW(), $5)
 		`,
 		ctxTimeout: 2 * time.Minute}
+	// change is_active to is_deleted for iter15
 	queryMap[InsertBatchRedirects] = SQLQuery{
 		SQLRequest: `
 			insert into redirects
 			(id
-			, is_deleted # change for iter15
+			, is_deleted
 			, url
 			, redirect
 			, date_create
@@ -50,19 +52,21 @@ func init() {
 			values
 		`,
 		ctxTimeout: 2 * time.Minute}
+	// change is_active to is_deleted for iter15
 	queryMap[GetRedirect] = SQLQuery{
 		SQLRequest: `
 			select url
 			     , redirect
 			     , date_create
 				 , date_update
-				 , is_deleted # change for iter15
+				 , is_deleted
 				 , user_id
 			from redirects
 			where redirect = $1 limit 1
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
+	// change is_active to is_deleted for iter15
 	queryMap[GetRedirectByURL] = SQLQuery{
 		SQLRequest: `
 			select id 
@@ -70,7 +74,7 @@ func init() {
 			     , redirect
 			     , date_create
 				 , date_update
-				 , is_deleted # change for iter15
+				 , is_deleted
 				 , user_id
 			from redirects
 			where is_deleted = B'0' and url = $1 limit 1
