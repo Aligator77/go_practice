@@ -30,7 +30,7 @@ func NewURLController(URLService *stores.URLStore) *URLController {
 
 func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	userID := u.GetUserID(w, r)
+	userID := u.GetUserID(w, r) // add for iter15
 
 	data, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -47,7 +47,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 
 	redirect := &models.Redirect{
 		ID:         newUUID.String(),
-		IsDelete:   0,
+		IsDelete:   0, // change for iter15
 		URL:        string(data),
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
@@ -84,7 +84,7 @@ func (u *URLController) CreatePostHandler(w http.ResponseWriter, r *http.Request
 
 func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	userID := u.GetUserID(w, r)
+	userID := u.GetUserID(w, r) // add for iter15
 
 	data := &models.URLData{}
 	if err := render.Bind(r, data); err != nil {
@@ -101,7 +101,7 @@ func (u *URLController) CreateRestHandler(w http.ResponseWriter, r *http.Request
 	newRedirect := helpers.GenerateRandomURL(10)
 	redirect := &models.Redirect{
 		ID:         newUUID.String(),
-		IsDelete:   0,
+		IsDelete:   0, // change for iter15
 		URL:        data.URL,
 		Redirect:   newRedirect,
 		DateCreate: time.Now().String(),
@@ -161,7 +161,7 @@ func (u *URLController) CreateBatchHandler(w http.ResponseWriter, r *http.Reques
 		}
 		redirect := &models.Redirect{
 			ID:         d.CorrelationID,
-			IsDelete:   0,
+			IsDelete:   0, // change for iter15
 			URL:        d.OriginalURL,
 			Redirect:   newRedirect,
 			DateCreate: time.Now().String(),
@@ -205,14 +205,14 @@ func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "GetRedirect error", http.StatusBadRequest)
 		}
 
-		if redirect.Redirect != "" && redirect.IsDelete == 0 {
+		if redirect.Redirect != "" && redirect.IsDelete == 0 { // change for iter15
 			fullRedirect := u.URLStore.MakeFullURL(redirect.URL)
 			u.URLStore.Logger.Warn().Strs("data", []string{id, redirect.URL, redirect.Redirect, strconv.Itoa(redirect.IsDelete)}).Msg("GetRedirect success")
 
 			w.Header().Set("Location", fullRedirect)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 			http.Redirect(w, r, fullRedirect, http.StatusTemporaryRedirect)
-		} else if redirect.IsDelete == 1 {
+		} else if redirect.IsDelete == 1 { // add for iter15
 			render.Status(r, http.StatusGone)
 			w.WriteHeader(http.StatusGone)
 			u.URLStore.Logger.Error().Err(err).Strs("data", []string{id, redirect.URL, redirect.Redirect, strconv.Itoa(redirect.IsDelete)}).Msg("GetRedirect is deleted")
@@ -228,7 +228,7 @@ func (u *URLController) GetHandler(w http.ResponseWriter, r *http.Request) {
 func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	method := r.Method
-	cookie, err := r.Cookie("user")
+	cookie, err := r.Cookie("user") // add for iter15
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
 		_ = render.Render(w, r, server.ErrInvalidRequest(err))
 		return
@@ -237,7 +237,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 
 	switch method {
 	case http.MethodGet:
-		if len(cookie.String()) > 0 && len(cookie.Value) > 0 {
+		if len(cookie.String()) > 0 && len(cookie.Value) > 0 { // add for iter15
 
 			existRedirects, err := u.URLStore.GetRedirectsByUser(cookie.Value)
 			if err != nil {
@@ -260,7 +260,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 			render.JSON(w, r, jsonResults)
 		}
 		auth := r.Header.Get("Authorization")
-		if len(cookie.String()) == 0 {
+		if len(cookie.String()) == 0 { // add for iter15
 			render.Status(r, http.StatusNoContent)
 			w.WriteHeader(http.StatusNoContent)
 		}
@@ -292,7 +292,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 		newRedirectURL := helpers.GenerateRandomURL(10)
 		newRedirect := &models.Redirect{
 			ID:         newUUID.String(),
-			IsDelete:   0,
+			IsDelete:   0, // add iter15
 			URL:        data.URL,
 			Redirect:   newRedirectURL,
 			DateCreate: time.Now().String(),
@@ -321,7 +321,7 @@ func (u *URLController) CreateFullRestHandler(w http.ResponseWriter, r *http.Req
 
 }
 
-func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) (userID string) {
+func (u *URLController) GetUserID(w http.ResponseWriter, r *http.Request) (userID string) { // add for iter15
 	cookie, err := r.Cookie("user")
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
 		u.URLStore.Logger.Err(err).Msg("error with cookie user")

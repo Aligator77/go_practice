@@ -11,8 +11,8 @@ const (
 	InsertRedirect
 	InsertBatchRedirects
 	GetRedirectByURL
-	DisableRedirects
-	GetRedirectsByUser
+	DisableRedirects   // add for iter15
+	GetRedirectsByUser // add for iter15
 )
 
 type SQLQuery struct {
@@ -27,7 +27,7 @@ func init() {
 		SQLRequest: `
 			insert into redirects
 			(id
-			, is_deleted
+			, is_deleted # change for iter15
 			, url
 			, redirect
 			, date_create
@@ -40,7 +40,7 @@ func init() {
 		SQLRequest: `
 			insert into redirects
 			(id
-			, is_deleted
+			, is_deleted # change for iter15
 			, url
 			, redirect
 			, date_create
@@ -56,7 +56,7 @@ func init() {
 			     , redirect
 			     , date_create
 				 , date_update
-				 , is_deleted
+				 , is_deleted # change for iter15
 				 , user_id
 			from redirects
 			where redirect = $1 limit 1
@@ -70,17 +70,18 @@ func init() {
 			     , redirect
 			     , date_create
 				 , date_update
-				 , is_deleted
+				 , is_deleted # change for iter15
 				 , user_id
 			from redirects
 			where is_deleted = B'0' and url = $1 limit 1
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
+	// add block for iter15
 	queryMap[DisableRedirects] = SQLQuery{
 		SQLRequest: `
 			Update redirects
-			set is_deleted = B'1'
+			set is_deleted = B'1' 
 			
 		`,
 		ctxTimeout: 2 * time.Minute,
@@ -99,6 +100,7 @@ func init() {
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
+	// end of added block for iter15
 }
 
 func Get(name int) (string, context.Context, context.CancelFunc) {
