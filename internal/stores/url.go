@@ -141,7 +141,7 @@ func (u *URLStore) GetRedirect(id string) (redirect models.Redirect, err error) 
 				&redirect.Redirect,
 				&redirect.DateCreate,
 				&redirect.DateUpdate,
-				&redirect.IsDelete,
+				&redirect.IsDelete, // change for iter15
 				&redirect.User,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")
@@ -187,7 +187,7 @@ func (u *URLStore) GetRedirectByURL(url string) (redirect models.Redirect, err e
 				&redirect.Redirect,
 				&redirect.DateCreate,
 				&redirect.DateUpdate,
-				&redirect.IsDelete,
+				&redirect.IsDelete, // change for iter15
 				&redirect.User,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")
@@ -220,7 +220,7 @@ func (u *URLStore) NewRedirect(redirect models.Redirect) (res models.Redirect, e
 		}
 		defer conn.Close()
 
-		res, err := conn.ExecContext(ctx, sqlRequest, redirect.ID, redirect.IsDelete, redirect.URL, redirect.Redirect, redirect.User)
+		res, err := conn.ExecContext(ctx, sqlRequest, redirect.ID, redirect.IsDelete, redirect.URL, redirect.Redirect, redirect.User) // change for iter15
 		if err != nil {
 			u.Logger.Error().Err(err).Str("data", redirect.String()).Msg("NewRedirect get connection failure")
 			return redirect, err
@@ -259,7 +259,7 @@ func (u *URLStore) NewRedirectsBatch(redirects []*models.Redirect) (id int64, er
 
 		for i, r := range redirects {
 			queryStr.WriteString(" (")
-			queryStr.WriteString(`'` + r.ID + `', B'` + strconv.Itoa(r.IsDelete) + `', '` + r.URL + `', '` + r.Redirect + `', NOW(), NOW(), '` + r.User + `'`)
+			queryStr.WriteString(`'` + r.ID + `', B'` + strconv.Itoa(r.IsDelete) + `', '` + r.URL + `', '` + r.Redirect + `', NOW(), NOW(), '` + r.User + `'`) // change for iter15
 			queryStr.WriteString(")")
 			if i != len(redirects)-1 {
 				queryStr.WriteString(",")
@@ -310,7 +310,7 @@ func (u *URLStore) DeleteRedirect(redirects []string) (affected bool, err error)
 			queryStr.WriteString(",")
 		}
 		if redirect, ok := u.EmulateDB[r]; ok {
-			redirect.IsDelete = 1
+			redirect.IsDelete = 1 // change for iter15
 			u.EmulateDB[r] = redirect
 		}
 	}
@@ -366,7 +366,7 @@ func (u *URLStore) GetRedirectsByUser(userID string) (redirects []models.Redirec
 				&redirect.Redirect,
 				&redirect.DateCreate,
 				&redirect.DateUpdate,
-				&redirect.IsDelete,
+				&redirect.IsDelete, // change for iter15
 				&redirect.User,
 			); err != nil {
 				u.Logger.Error().Err(err).Msg("scan failure")

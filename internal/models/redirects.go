@@ -5,7 +5,7 @@ import "encoding/json"
 
 type Redirect struct {
 	ID         string `json:"uuid"`
-	IsDelete   int    `json:"is_deleted"`
+	IsDelete   int    `json:"is_deleted"` // change for iter15
 	URL        string `json:"url"`
 	Redirect   string `json:"redirect"`
 	DateCreate string `json:"dateCreate"`

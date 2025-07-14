@@ -11,8 +11,8 @@ const (
 	InsertRedirect
 	InsertBatchRedirects
 	GetRedirectByURL
-	DisableRedirects
-	GetRedirectsByUser
+	DisableRedirects   // add for iter15
+	GetRedirectsByUser // add for iter15
 )
 
 type SQLQuery struct {
@@ -23,6 +23,7 @@ type SQLQuery struct {
 var queryMap = make(map[int]SQLQuery)
 
 func init() {
+	// change is_active to is_deleted for iter15
 	queryMap[InsertRedirect] = SQLQuery{
 		SQLRequest: `
 			insert into redirects
@@ -36,6 +37,7 @@ func init() {
 			values ($1, $2, $3, $4, NOW(), NOW(), $5)
 		`,
 		ctxTimeout: 2 * time.Minute}
+	// change is_active to is_deleted for iter15
 	queryMap[InsertBatchRedirects] = SQLQuery{
 		SQLRequest: `
 			insert into redirects
@@ -50,6 +52,7 @@ func init() {
 			values
 		`,
 		ctxTimeout: 2 * time.Minute}
+	// change is_active to is_deleted for iter15
 	queryMap[GetRedirect] = SQLQuery{
 		SQLRequest: `
 			select url
@@ -63,6 +66,7 @@ func init() {
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
+	// change is_active to is_deleted for iter15
 	queryMap[GetRedirectByURL] = SQLQuery{
 		SQLRequest: `
 			select id 
@@ -77,10 +81,11 @@ func init() {
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
+	// add block for iter15
 	queryMap[DisableRedirects] = SQLQuery{
 		SQLRequest: `
 			Update redirects
-			set is_deleted = B'1'
+			set is_deleted = B'1' 
 			
 		`,
 		ctxTimeout: 2 * time.Minute,
@@ -99,6 +104,7 @@ func init() {
 		`,
 		ctxTimeout: 2 * time.Minute,
 	}
+	// end of added block for iter15
 }
 
 func Get(name int) (string, context.Context, context.CancelFunc) {
